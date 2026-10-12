@@ -291,7 +291,7 @@ jobs:
                           Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                               Column(modifier = Modifier.weight(1f)) {
                                   Text(if (hindi) "अपना क्षेत्र चुनें" else "Select your area", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Navy)
-                                  Text(if (hindi) "जिला से भाग तक क्रमवार चुनें" else "Choose District → Assembly → Part", style = MaterialTheme.typography.bodySmall, color = Muted)
+                                  Text(if (selectedTab == "BLO") (if (hindi) "जिला से भाग तक क्रमवार चुनें" else "Choose District → Assembly → Part") else (if (hindi) "जिला और विधानसभा चुनें" else "Choose District → Assembly"), style = MaterialTheme.typography.bodySmall, color = Muted)
                               }
                               Surface(color = Color(0xFFE0F2E8), shape = RoundedCornerShape(20.dp)) {
                                   Text(if (hindi) "ऑफ़लाइन" else "OFFLINE", color = Color(0xFF176B45), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp))
@@ -463,7 +463,7 @@ jobs:
                                                       Surface(color = Color(0xFFFFF1D6), shape = RoundedCornerShape(8.dp)) { Text(selectedTab, color = NavyDark, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp), style = MaterialTheme.typography.labelSmall) }
                                                   }
                                                   HorizontalDivider(color = Color(0xFFE8EEF2))
-                                                  Text(record.partName.ifBlank { if (hindi) "मतदान केंद्र का नाम उपलब्ध नहीं" else "Polling station name unavailable" }, color = NavyDark, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
+                                                  Text(record.partName.ifBlank { if (selectedTab == "BLO") (if (hindi) "मतदान केंद्र का नाम उपलब्ध नहीं" else "Polling station name unavailable") else (if (hindi) "कार्यालय का पता उपलब्ध नहीं" else "Office address unavailable") }, color = NavyDark, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
                                                   Text((if (selectedTab == "BLO") (if (hindi) "भाग संख्या " else "PART NO. ") else (if (hindi) "यूज़र ID " else "USER ID ")) + record.partNo, color = Blue, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
                                                   Text(record.district + " · " + record.acNumber + " " + record.assemblyName, color = Muted, style = MaterialTheme.typography.bodySmall)
                                                   Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
