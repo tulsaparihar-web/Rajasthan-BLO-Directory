@@ -236,8 +236,8 @@ jobs:
                                   verticalAlignment = Alignment.CenterVertically
                               ) {
                                   Column(modifier = Modifier.weight(1f)) {
-                                      Text(if (hindi) "मतदान केंद्र सहायता" else "POLLING STATION ASSISTANCE", color = Color(0xFFFFC16B), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                                      Text(if (hindi) "अपना बूथ और BLO आसानी से खोजें" else "Find your booth and BLO in seconds", color = Color.White, style = MaterialTheme.typography.bodyMedium)
+                                      Text(if (selectedTab == "BLO") (if (hindi) "मतदान केंद्र सहायता" else "POLLING STATION ASSISTANCE") else (if (hindi) "विधानसभा अधिकारी निर्देशिका" else "ASSEMBLY OFFICER DIRECTORY"), color = Color(0xFFFFC16B), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                      Text(if (selectedTab == "BLO") (if (hindi) "अपना बूथ और BLO आसानी से खोजें" else "Find your booth and BLO in seconds") else (if (hindi) "जिले और विधानसभा से ERO खोजें" else "Find your ERO by district and assembly"), color = Color.White, style = MaterialTheme.typography.bodyMedium)
                                   }
                                   Surface(color = Saffron, shape = RoundedCornerShape(10.dp)) {
                                       Text(selectedTab, color = Navy, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), fontWeight = FontWeight.ExtraBold)
@@ -425,7 +425,7 @@ jobs:
                               }
                               Surface(color = Color.White, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                                   Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                      Text((if (selectedTab == "BLO") listOf(district, assemblies.firstOrNull { it.acNumber == assembly }?.assemblyName.orEmpty(), parts.firstOrNull { it.partNo == part }?.partName.orEmpty() else listOf(district, assembly)).filter { it.isNotBlank() }.joinToString(" · ").ifBlank { if (hindi) "सभी उपलब्ध क्षेत्र" else "All available areas" }, color = Navy, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
+                                      Text((if (selectedTab == "BLO") listOf(district, assemblies.firstOrNull { it.acNumber == assembly }?.assemblyName.orEmpty(), parts.firstOrNull { it.partNo == part }?.partName.orEmpty()) else listOf(district, assembly)).filter { it.isNotBlank() }.joinToString(" · ").ifBlank { if (hindi) "सभी उपलब्ध क्षेत्र" else "All available areas" }, color = Navy, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
                                       if (query.isNotBlank()) Text((if (hindi) "खोज: " else "Query: ") + query, color = Muted, style = MaterialTheme.typography.bodySmall)
                                       Text(if (hindi) "दिखाए गए " + rows.size + " / " + matchingTotal else "Showing " + rows.size + " of " + matchingTotal + " matches", color = Muted, style = MaterialTheme.typography.labelSmall)
                                   }
