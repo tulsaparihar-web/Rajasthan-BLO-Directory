@@ -144,6 +144,7 @@ jobs:
               var partOpen by remember { mutableStateOf(false) }
               var loading by remember { mutableStateOf(true) }
               var hasSearched by remember { mutableStateOf(false) }
+              var showResults by remember { mutableStateOf(false) }
 
               suspend fun runSearch() {
                   val term = query.trim()
@@ -210,7 +211,8 @@ jobs:
                           }
                       }
                   ) { inset ->
-                      Column(
+                      if (!showResults) {
+                  Column(
                           modifier = Modifier.fillMaxSize().padding(inset).padding(horizontal = 16.dp).verticalScroll(rememberScrollState()),
                           verticalArrangement = Arrangement.spacedBy(12.dp)
                       ) {
@@ -315,14 +317,14 @@ jobs:
                                       label = { Text(if (hindi) "BLO नाम या केंद्र खोजें" else "Search BLO name or polling station") }
                                   )
                                   Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                      Button(onClick = { scope.launch { runSearch(); hasSearched = true } }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(vertical = 12.dp)) {
+                                      Button(onClick = { scope.launch { runSearch(); hasSearched = true; showResults = true } }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(vertical = 12.dp)) {
                                           Icon(Icons.Default.Search, contentDescription = null)
                                           Spacer(Modifier.width(8.dp))
                                           Text(if (hindi) "खोजें" else "Search")
                                       }
                                       OutlinedButton(onClick = {
                                           query = ""; district = ""; assembly = ""; part = ""; assemblies = emptyList(); parts = emptyList()
-                                          rows = emptyList(); hasSearched = false
+                                          rows = emptyList(); hasSearched = false; showResults = false
                                       }, shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)) {
                                           Text(if (hindi) "रीसेट" else "Reset")
                                       }
@@ -330,13 +332,45 @@ jobs:
                               }
                           }
 
-                          Row(
-                              modifier = Modifier.fillMaxWidth(),
-                              verticalAlignment = Alignment.CenterVertically
-                          ) {
+                      }
+                      } else {
+                      Column(modifier = Modifier.fillMaxSize().padding(inset).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                          Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                               Column(modifier = Modifier.weight(1f)) {
-                                  Text(
-                                      if (hindi) "खोज परिणाम" else "Search results",
+                                  Text(if (hindi) "आपके खोज परिणाम" else "Your search results", color = Navy, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+                                  Text(if (hindi) "चुने गए क्षेत्र और खोज शब्द के अनुसार" else "Matching your selected area and search term", color = Muted, style = MaterialTheme.typography.bodySmall)
+                              }
+                              Surface(color = Color(0xFFE7EEF9), shape = RoundedCornerShape(20.dp)) {
+                                  Text(if (hindi) rows.size.toString() + " मिले" else rows.size.toString() + " found", color = Navy, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
+                              }
+                          }
+                          Surface(color = Color.White, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+                              Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                  Text(listOf(district, assemblies.firstOrNull { it.acNumber == assembly }?.assemblyName.orEmpty(), parts.firstOrNull { it.partNo == part }?.partName.orEmpty()).filter { it.isNotBlank() }.joinToString(" · ").ifBlank { if (hindi) "सभी उपलब्ध क्षेत्र" else "All available areas" }, color = Navy, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
+                                  if (query.isNotBlank()) Text((if (hindi) "खोज: " else "Query: ") + query, color = Muted, style = MaterialTheme.typography.bodySmall)
+                              }
+                          }
+                          Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                              OutlinedButton(onClick = { showResults = false }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp)) { Icon(Icons.Default.Tune, contentDescription = null); Spacer(Modifier.width(6.dp)); Text(if (hindi) "फ़िल्टर बदलें" else "Refine Search") }
+                              OutlinedButton(onClick = { query = ""; district = ""; assembly = ""; part = ""; assemblies = emptyList(); parts = emptyList(); rows = emptyList(); hasSearched = false; showResults = false }, shape = RoundedCornerShape(12.dp)) { Text(if (hindi) "रीसेट" else "Reset") }
+                          }
+                          if (loading) {
+                              LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                          } else if (rows.isEmpty()) {
+                              ElevatedCard(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+                                  Column(modifier = Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                      Text(if (hindi) "कोई रिकॉर्ड नहीं मिला" else "No records found", color = Navy, fontWeight = FontWeight.Bold)
+                                      Text(if (hindi) "कृपया फ़िल्टर या खोज शब्द बदलें।" else "Try changing your filters or search terms.", color = Muted)
+                                      Button(onClick = { showResults = false }, shape = RoundedCornerShape(12.dp)) { Text(if (hindi) "वापस जाएँ" else "Back to Search") }
+                                  }
+                              }
+                          } else {
+                          LazyColumn(
+                              verticalArrangement = Arrangement.spacedBy(10.dp),
+                              contentPadding = PaddingValues(bottom = 24.dp),
+                              modifier = Modifier.fillMaxWidth().weight(1f)
+                          ) {
+                              items(items = rows, key = { it.id }) { record ->
                                       color = Navy,
                                       fontWeight = FontWeight.Bold,
                                       style = MaterialTheme.typography.titleLarge
@@ -506,15 +540,25 @@ jobs:
                                                       ) {
                                                           Icon(Icons.Default.Call, contentDescription = null)
                                                           Spacer(Modifier.width(7.dp))
-                                                          Text(if (hindi) "कॉल करें" else "Call")
+                                                          Text(if (hindi) "कॉल" else "Call")
                                                       }
                                                   }
+                                                  OutlinedButton(
+                                                      onClick = {
+                                                          val destination = listOf(record.partName, record.assemblyName, record.district, "Rajasthan").filter { it.isNotBlank() }.joinToString(", ")
+                                                          context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=" + Uri.encode(destination))))
+                                                      },
+                                                      shape = RoundedCornerShape(11.dp),
+                                                      contentPadding = PaddingValues(horizontal = 10.dp, vertical = 11.dp)
+                                                  ) { Text(if (hindi) "दिशाएँ" else "Directions") }
                                               }
                                           }
                                       }
                                   }
                               }
                           }
+                          }
+                      }
                       }
                   }
               }
