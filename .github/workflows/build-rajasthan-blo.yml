@@ -106,11 +106,12 @@ jobs:
           import androidx.compose.ui.unit.dp
           import kotlinx.coroutines.launch
 
-          private val Navy = Color(0xFF102A43)
-          private val Blue = Color(0xFF176B87)
-          private val Saffron = Color(0xFFE88924)
-          private val Pale = Color(0xFFF3F7FA)
-          private val Muted = Color(0xFF526777)
+          private val Navy = Color(0xFF173B7A)
+          private val NavyDark = Color(0xFF0B2857)
+          private val Blue = Color(0xFF173B7A)
+          private val Saffron = Color(0xFFF4A000)
+          private val Pale = Color(0xFFF4F6F9)
+          private val Muted = Color(0xFF667085)
 
           class MainActivity : ComponentActivity() {
               override fun onCreate(savedInstanceState: Bundle?) {
@@ -168,9 +169,10 @@ jobs:
                       topBar = {
                           Column(
                               modifier = Modifier.fillMaxWidth().background(Navy)
-                                  .statusBarsPadding().padding(start = 20.dp, end = 12.dp, top = 12.dp, bottom = 18.dp)
+                                  .statusBarsPadding()
                           ) {
-                              Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                              Box(Modifier.fillMaxWidth().height(4.dp).background(Saffron))
+                              Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)) {
                                   Column(modifier = Modifier.weight(1f)) {
                                       Text("RAJASTHAN", color = Color(0xFFFFC16B), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                       Text(if (hindi) "BLO निर्देशिका" else "BLO Directory", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
@@ -201,6 +203,20 @@ jobs:
                           verticalArrangement = Arrangement.spacedBy(12.dp)
                       ) {
                           Spacer(Modifier.height(2.dp))
+                          Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                              ElevatedCard(modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), colors = CardDefaults.elevatedCardColors(containerColor = Color.White), elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)) {
+                                  Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp)) {
+                                      Text(total.toString(), color = Navy, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                                      Text(if (hindi) "BLO रिकॉर्ड" else "BLO Records", color = Muted, style = MaterialTheme.typography.labelMedium)
+                                  }
+                              }
+                              ElevatedCard(modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), colors = CardDefaults.elevatedCardColors(containerColor = Color.White), elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)) {
+                                  Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp)) {
+                                      Text(districts.size.toString(), color = Navy, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                                      Text(if (hindi) "जिले" else "Districts", color = Muted, style = MaterialTheme.typography.labelMedium)
+                                  }
+                              }
+                          }
                           Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                               Column(modifier = Modifier.weight(1f)) {
                                   Text(if (hindi) "अपना क्षेत्र चुनें" else "Select your area", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Navy)
