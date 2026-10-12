@@ -141,16 +141,26 @@ jobs:
               var assemblyOpen by remember { mutableStateOf(false) }
               var partOpen by remember { mutableStateOf(false) }
               var loading by remember { mutableStateOf(true) }
+              var hasSearched by remember { mutableStateOf(false) }
 
               suspend fun runSearch() {
-                  rows = db.dao().search(query.trim(), district, assembly, part)
+                  val term = query.trim()
+                  // Never run a broad, expensive query just because the screen opened.
+                  if (term.isBlank() && district.isBlank() && assembly.isBlank() && part.isBlank()) {
+                      rows = emptyList()
+                  } else {
+                      rows = db.dao().search(term, district, assembly, part)
+                  }
               }
 
               LaunchedEffect(Unit) {
+                  // CSV is streamed into Room in batches; no 300-record result list is
+                  // loaded into the home screen. Only lightweight counts and districts
+                  // are read until the user requests a search.
                   seedFromAssets(context, db)
-                  districts = db.dao().districts()
                   total = db.dao().count()
-                  rows = db.dao().search("", "", "", "")
+                  districts = db.dao().districts()
+                  rows = emptyList()
                   loading = false
               }
 
@@ -252,7 +262,7 @@ jobs:
                                           districts.forEach { item ->
                                               DropdownMenuItem(text = { Text(item) }, onClick = {
                                                   district = item; assembly = ""; part = ""; assemblies = emptyList(); parts = emptyList(); districtOpen = false
-                                                  scope.launch { assemblies = db.dao().assembliesForDistrict(district); runSearch() }
+                                                  scope.launch { assemblies = db.dao().assembliesForDistrict(district) }
                                               })
                                           }
                                       }
@@ -270,7 +280,7 @@ jobs:
                                           assemblies.forEach { item ->
                                               DropdownMenuItem(text = { Text(item.acNumber + " - " + item.assemblyName) }, onClick = {
                                                   assembly = item.acNumber; part = ""; parts = emptyList(); assemblyOpen = false
-                                                  scope.launch { parts = db.dao().partsForAssembly(district, assembly); runSearch() }
+                                                  scope.launch { parts = db.dao().partsForAssembly(district, assembly) }
                                               })
                                           }
                                       }
@@ -287,7 +297,7 @@ jobs:
                                       DropdownMenu(expanded = partOpen, onDismissRequest = { partOpen = false }, modifier = Modifier.heightIn(max = 320.dp)) {
                                           parts.forEach { item ->
                                               DropdownMenuItem(text = { Text(item.partNo + " - " + item.partName) }, onClick = {
-                                                  part = item.partNo; partOpen = false; scope.launch { runSearch() }
+                                                  part = item.partNo; partOpen = false
                                               })
                                           }
                                       }
@@ -303,14 +313,14 @@ jobs:
                                       label = { Text(if (hindi) "BLO नाम या केंद्र खोजें" else "Search BLO name or polling station") }
                                   )
                                   Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                      Button(onClick = { scope.launch { runSearch() } }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(vertical = 12.dp)) {
+                                      Button(onClick = { scope.launch { runSearch(); hasSearched = true } }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(vertical = 12.dp)) {
                                           Icon(Icons.Default.Search, contentDescription = null)
                                           Spacer(Modifier.width(8.dp))
                                           Text(if (hindi) "खोजें" else "Search")
                                       }
                                       OutlinedButton(onClick = {
                                           query = ""; district = ""; assembly = ""; part = ""; assemblies = emptyList(); parts = emptyList()
-                                          scope.launch { rows = db.dao().search("", "", "", "") }
+                                          rows = emptyList(); hasSearched = false
                                       }, shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)) {
                                           Text(if (hindi) "रीसेट" else "Reset")
                                       }
@@ -330,8 +340,22 @@ jobs:
                           } else if (rows.isEmpty()) {
                               ElevatedCard(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
                                   Column(modifier = Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                      Text(if (hindi) "कोई रिकॉर्ड नहीं मिला" else "No records found", color = Navy, fontWeight = FontWeight.Bold)
-                                      Text(if (hindi) "कृपया चुने गए फ़िल्टर बदलें।" else "Try changing your filters or search terms.", color = Muted)
+                                      Text(
+                                          if (!hasSearched) {
+                                              if (hindi) "खोज शुरू करने के लिए क्षेत्र चुनें" else "Ready to search"
+                                          } else {
+                                              if (hindi) "कोई रिकॉर्ड नहीं मिला" else "No records found"
+                                          },
+                                          color = Navy, fontWeight = FontWeight.Bold
+                                      )
+                                      Text(
+                                          if (!hasSearched) {
+                                              if (hindi) "जिला, विधानसभा, भाग चुनें या नाम/केंद्र लिखें, फिर खोजें दबाएँ।" else "Choose a district, assembly or part, or enter a name/polling station, then tap Search."
+                                          } else {
+                                              if (hindi) "कृपया चुने गए फ़िल्टर या खोज शब्द बदलें।" else "Try changing your filters or search terms."
+                                          },
+                                          color = Muted
+                                      )
                                   }
                               }
                           } else {
@@ -398,7 +422,7 @@ jobs:
           data class PartOption(val partNo:String, val partName:String)
 
           @Dao interface BloDao {
-           @Query("SELECT * FROM blo_records WHERE (:q='' OR lower(bloName) LIKE '%'||lower(:q)||'%' OR lower(partName) LIKE '%'||lower(:q)||'%' OR partNo LIKE '%'||:q||'%' OR lower(assemblyName) LIKE '%'||lower(:q)||'%') AND (:district='' OR lower(district)=lower(:district)) AND (:ac='' OR acNumber=:ac) AND (:part='' OR partNo=:part) ORDER BY district,assemblyName,partNo LIMIT 300")
+           @Query("SELECT * FROM blo_records WHERE (:q='' OR lower(bloName) LIKE '%'||lower(:q)||'%' OR lower(partName) LIKE '%'||lower(:q)||'%' OR partNo LIKE '%'||:q||'%' OR lower(assemblyName) LIKE '%'||lower(:q)||'%') AND (:district='' OR lower(district)=lower(:district)) AND (:ac='' OR acNumber=:ac) AND (:part='' OR partNo=:part) ORDER BY district,assemblyName,partNo LIMIT 150")
            suspend fun search(q:String,district:String,ac:String,part:String):List<BloRecord>
            @Query("SELECT DISTINCT district FROM blo_records WHERE district!='' ORDER BY district") suspend fun districts():List<String>
            @Query("SELECT DISTINCT acNumber, assemblyName FROM blo_records WHERE lower(district)=lower(:district) ORDER BY CAST(acNumber AS INTEGER), assemblyName") suspend fun assembliesForDistrict(district:String):List<AssemblyOption>
@@ -423,7 +447,7 @@ jobs:
              if(f.size>=8){
               val id=listOf(f[0],f[1],f[3],f[5],f[7]).joinToString("|").lowercase()
               batch.add(BloRecord(id,f[0],f[1],f[2],f[3],f[4],f[5],f[6],f[7]))
-              if(batch.size>=500){db.dao().upsertAll(batch.toList());batch.clear()}
+              if(batch.size>=1500){db.dao().upsertAll(batch.toList());batch.clear()}
              }
             }
             if(batch.isNotEmpty())db.dao().upsertAll(batch)
