@@ -4,7 +4,8 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - "RajasthanBLODirectory_Project.zip"
+      - ".github/workflows/build-rajasthan-blo.yml"
+      - "RajasthanBLODirectory_Project*.zip"
 
 permissions:
   contents: read
@@ -14,23 +15,34 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - name: Locate project ZIP
+        id: locate-zip
+        shell: bash
+        run: |
+          ZIP_FILE="$(find . -maxdepth 1 -type f -name 'RajasthanBLODirectory_Project*.zip' -print -quit)"
+          if [ -z "$ZIP_FILE" ]; then
+            echo "::error::No RajasthanBLODirectory_Project*.zip found in the repository root."
+            echo "Upload the project ZIP at the root, keeping its name starting with RajasthanBLODirectory_Project."
+            exit 1
+          fi
+          echo "zip_file=$ZIP_FILE" >> "$GITHUB_OUTPUT"
+          echo "Using project ZIP: $ZIP_FILE"
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Verify project ZIP is present
-        run: |
-          if [ ! -f "RajasthanBLODirectory_Project.zip" ]; then
-            echo "::error::Upload RajasthanBLODirectory_Project.zip to the repository root, then run this workflow again."
-            exit 1
-          fi
-
       - name: Extract project
+        shell: bash
+        env:
+          ZIP_FILE: ${{ steps.locate-zip.outputs.zip_file }}
         run: |
           mkdir -p "$RUNNER_TEMP/blo-project"
-          unzip -q RajasthanBLODirectory_Project.zip -d "$RUNNER_TEMP/blo-project"
+          unzip -q "$ZIP_FILE" -d "$RUNNER_TEMP/blo-project"
           ANDROID_PROJECT_DIR="$(find "$RUNNER_TEMP/blo-project" -path '*/android/settings.gradle.kts' -print -quit | xargs -r dirname)"
           if [ -z "$ANDROID_PROJECT_DIR" ]; then
             echo "::error::Could not find android/settings.gradle.kts inside the uploaded ZIP."
+            echo "Check that you uploaded the full RajasthanBLODirectory_Project ZIP."
+            find "$RUNNER_TEMP/blo-project" -maxdepth 3 -type f | head -80
             exit 1
           fi
           echo "ANDROID_PROJECT_DIR=$ANDROID_PROJECT_DIR" >> "$GITHUB_ENV"
