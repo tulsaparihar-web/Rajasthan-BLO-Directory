@@ -327,7 +327,7 @@ jobs:
                                       }
                                       OutlinedButton(onClick = {
                                           query = ""; district = ""; assembly = ""; part = ""; assemblies = emptyList(); parts = emptyList()
-                                          rows = emptyList(); hasSearched = false; showResults = false
+                                          rows = emptyList(); matchingTotal = 0; hasSearched = false; showResults = false
                                       }, shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)) {
                                           Text(if (hindi) "रीसेट" else "Reset")
                                       }
@@ -337,245 +337,92 @@ jobs:
 
                       }
                       } else {
-                      Column(modifier = Modifier.fillMaxSize().padding(inset).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                          Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                              Column(modifier = Modifier.weight(1f)) {
-                                  Text(if (hindi) "आपके खोज परिणाम" else "Your search results", color = Navy, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
-                                  Text(if (hindi) "चुने गए क्षेत्र और खोज शब्द के अनुसार" else "Matching your selected area and search term", color = Muted, style = MaterialTheme.typography.bodySmall)
-                              }
-                              Surface(color = Color(0xFFE7EEF9), shape = RoundedCornerShape(20.dp)) {
-                                  Text(if (hindi) matchingTotal.toString() + " मिले" else matchingTotal.toString() + " found", color = Navy, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
-                              }
-                          }
-                          Surface(color = Color.White, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
-                              Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                  Text(listOf(district, assemblies.firstOrNull { it.acNumber == assembly }?.assemblyName.orEmpty(), parts.firstOrNull { it.partNo == part }?.partName.orEmpty()).filter { it.isNotBlank() }.joinToString(" · ").ifBlank { if (hindi) "सभी उपलब्ध क्षेत्र" else "All available areas" }, color = Navy, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
-                                  if (query.isNotBlank()) Text((if (hindi) "खोज: " else "Query: ") + query, color = Muted, style = MaterialTheme.typography.bodySmall)
-                                  Text(if (hindi) "दिखाए गए " + rows.size + " / " + matchingTotal else "Showing " + rows.size + " of " + matchingTotal + " matches", color = Muted, style = MaterialTheme.typography.labelSmall)
-                              }
-                          }
-                          Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                              OutlinedButton(onClick = { showResults = false }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp)) { Icon(Icons.Default.Tune, contentDescription = null); Spacer(Modifier.width(6.dp)); Text(if (hindi) "फ़िल्टर बदलें" else "Refine Search") }
-                              OutlinedButton(onClick = { query = ""; district = ""; assembly = ""; part = ""; assemblies = emptyList(); parts = emptyList(); rows = emptyList(); hasSearched = false; showResults = false }, shape = RoundedCornerShape(12.dp)) { Text(if (hindi) "रीसेट" else "Reset") }
-                          }
-                          if (loading) {
-                              LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                          } else if (rows.isEmpty()) {
-                              ElevatedCard(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
-                                  Column(modifier = Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                      Text(if (hindi) "कोई रिकॉर्ड नहीं मिला" else "No records found", color = Navy, fontWeight = FontWeight.Bold)
-                                      Text(if (hindi) "कृपया फ़िल्टर या खोज शब्द बदलें।" else "Try changing your filters or search terms.", color = Muted)
-                                      Button(onClick = { showResults = false }, shape = RoundedCornerShape(12.dp)) { Text(if (hindi) "वापस जाएँ" else "Back to Search") }
-                                  }
-                              }
-                          } else {
-                          LazyColumn(
-                              verticalArrangement = Arrangement.spacedBy(10.dp),
-                              contentPadding = PaddingValues(bottom = 24.dp),
-                              modifier = Modifier.fillMaxWidth().weight(1f)
+                          Column(
+                              modifier = Modifier.fillMaxSize().padding(inset).padding(horizontal = 16.dp),
+                              verticalArrangement = Arrangement.spacedBy(10.dp)
                           ) {
-                              items(items = rows, key = { it.id }) { record ->
-                                      color = Navy,
-                                      fontWeight = FontWeight.Bold,
-                                      style = MaterialTheme.typography.titleLarge
-                                  )
-                                  Text(
-                                      if (hindi) "कुल " + total + " BLO रिकॉर्ड" else total.toString() + " BLO records in directory",
-                                      color = Muted,
-                                      style = MaterialTheme.typography.bodySmall
-                                  )
-                              }
-                              Surface(color = Color(0xFFE7EEF9), shape = RoundedCornerShape(20.dp)) {
-                                  Text(
-                                      if (hindi) rows.size.toString() + " मिले" else rows.size.toString() + " found",
-                                      color = Navy,
-                                      fontWeight = FontWeight.Bold,
-                                      style = MaterialTheme.typography.labelLarge,
-                                      modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                                  )
-                              }
-                          }
-
-                          if (loading) {
-                              LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                          } else if (rows.isEmpty()) {
-                              ElevatedCard(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
-                                  Column(modifier = Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                      Text(
-                                          if (!hasSearched) {
-                                              if (hindi) "खोज शुरू करने के लिए क्षेत्र चुनें" else "Ready to search"
-                                          } else {
-                                              if (hindi) "कोई रिकॉर्ड नहीं मिला" else "No records found"
-                                          },
-                                          color = Navy, fontWeight = FontWeight.Bold
-                                      )
-                                      Text(
-                                          if (!hasSearched) {
-                                              if (hindi) "जिला, विधानसभा, भाग चुनें या नाम/केंद्र लिखें, फिर खोजें दबाएँ।" else "Choose a district, assembly or part, or enter a name/polling station, then tap Search."
-                                          } else {
-                                              if (hindi) "कृपया चुने गए फ़िल्टर या खोज शब्द बदलें।" else "Try changing your filters or search terms."
-                                          },
-                                          color = Muted
-                                      )
+                              Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                  Column(modifier = Modifier.weight(1f)) {
+                                      Text(if (hindi) "खोज परिणाम" else "Search Results", color = Navy, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+                                      Text(if (hindi) "BLO संपर्क सूची" else "BLO contact list", color = Muted, style = MaterialTheme.typography.bodySmall)
+                                  }
+                                  Surface(color = Color(0xFFE7EEF9), shape = RoundedCornerShape(20.dp)) {
+                                      Text(if (hindi) matchingTotal.toString() + " मिले" else matchingTotal.toString() + " found", color = Navy, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
                                   }
                               }
-                          } else {
-                              LazyColumn(
-                                  verticalArrangement = Arrangement.spacedBy(10.dp),
-                                  contentPadding = PaddingValues(bottom = 24.dp),
-                                  modifier = Modifier.fillMaxWidth().heightIn(max = 480.dp)
-                              ) {
-                                  items(items = rows, key = { it.id }) { record ->
-                                      ElevatedCard(
-                                          modifier = Modifier.fillMaxWidth(),
-                                          shape = RoundedCornerShape(18.dp),
-                                          colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
-                                          elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
-                                      ) {
-                                          Column(
-                                              modifier = Modifier.fillMaxWidth().padding(14.dp),
-                                              verticalArrangement = Arrangement.spacedBy(10.dp)
-                                          ) {
-                                              Row(verticalAlignment = Alignment.CenterVertically) {
-                                                  Surface(
-                                                      color = Navy,
-                                                      shape = RoundedCornerShape(14.dp),
-                                                      modifier = Modifier.size(48.dp)
-                                                  ) {
-                                                      Box(contentAlignment = Alignment.Center) {
-                                                          Text(
-                                                              record.bloName.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "B",
-                                                              color = Color.White,
-                                                              fontWeight = FontWeight.Bold,
-                                                              style = MaterialTheme.typography.titleLarge
-                                                          )
+                              Surface(color = Color.White, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+                                  Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                      Text(listOf(district, assemblies.firstOrNull { it.acNumber == assembly }?.assemblyName.orEmpty(), parts.firstOrNull { it.partNo == part }?.partName.orEmpty()).filter { it.isNotBlank() }.joinToString(" · ").ifBlank { if (hindi) "सभी उपलब्ध क्षेत्र" else "All available areas" }, color = Navy, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
+                                      if (query.isNotBlank()) Text((if (hindi) "खोज: " else "Query: ") + query, color = Muted, style = MaterialTheme.typography.bodySmall)
+                                      Text(if (hindi) "दिखाए गए " + rows.size + " / " + matchingTotal else "Showing " + rows.size + " of " + matchingTotal + " matches", color = Muted, style = MaterialTheme.typography.labelSmall)
+                                  }
+                              }
+                              Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                  OutlinedButton(onClick = { showResults = false }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp)) { Icon(Icons.Default.Tune, contentDescription = null); Spacer(Modifier.width(6.dp)); Text(if (hindi) "फ़िल्टर बदलें" else "Refine Search") }
+                                  OutlinedButton(onClick = { query = ""; district = ""; assembly = ""; part = ""; assemblies = emptyList(); parts = emptyList(); rows = emptyList(); matchingTotal = 0; hasSearched = false; showResults = false }, shape = RoundedCornerShape(12.dp)) { Text(if (hindi) "रीसेट" else "Reset") }
+                              }
+                              if (rows.isEmpty()) {
+                                  ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
+                                      Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                          Text(if (hindi) "कोई रिकॉर्ड नहीं मिला" else "No records found", color = Navy, fontWeight = FontWeight.Bold)
+                                          Text(if (hindi) "कृपया फ़िल्टर या खोज शब्द बदलें।" else "Try changing your filters or search terms.", color = Muted)
+                                          Button(onClick = { showResults = false }, shape = RoundedCornerShape(12.dp)) { Text(if (hindi) "वापस जाएँ" else "Back to Search") }
+                                      }
+                                  }
+                              } else {
+                                  LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 16.dp)) {
+                                      items(items = rows, key = { it.id }) { record ->
+                                          ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.elevatedCardColors(containerColor = Color.White), elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)) {
+                                              Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                  Row(verticalAlignment = Alignment.CenterVertically) {
+                                                      Surface(color = Navy, shape = RoundedCornerShape(12.dp), modifier = Modifier.size(44.dp)) {
+                                                          Box(contentAlignment = Alignment.Center) { Text(record.bloName.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "B", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge) }
                                                       }
-                                                  }
-                                                  Spacer(Modifier.width(12.dp))
-                                                  Column(modifier = Modifier.weight(1f)) {
-                                                      Text(
-                                                          record.bloName.ifBlank { if (hindi) "नाम उपलब्ध नहीं" else "Name unavailable" },
-                                                          color = Navy,
-                                                          fontWeight = FontWeight.Bold,
-                                                          style = MaterialTheme.typography.titleMedium
-                                                      )
-                                                      Text(
-                                                          record.designation.ifBlank { if (hindi) "बूथ लेवल अधिकारी" else "Booth Level Officer" },
-                                                          color = Muted,
-                                                          style = MaterialTheme.typography.bodySmall
-                                                      )
-                                                  }
-                                                  Surface(color = Color(0xFFFFF1D6), shape = RoundedCornerShape(8.dp)) {
-                                                      Text(
-                                                          "BLO",
-                                                          color = NavyDark,
-                                                          fontWeight = FontWeight.ExtraBold,
-                                                          style = MaterialTheme.typography.labelMedium,
-                                                          modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp)
-                                                      )
-                                                  }
-                                              }
-
-                                              HorizontalDivider(color = Color(0xFFE8EEF2))
-
-                                              Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                                  Text(
-                                                      record.partName.ifBlank { if (hindi) "मतदान केंद्र का नाम उपलब्ध नहीं" else "Polling station name unavailable" },
-                                                      color = NavyDark,
-                                                      fontWeight = FontWeight.SemiBold,
-                                                      style = MaterialTheme.typography.titleSmall
-                                                  )
-                                                  Text(
-                                                      (if (hindi) "भाग संख्या " else "PART NO. ") + record.partNo,
-                                                      color = Blue,
-                                                      fontWeight = FontWeight.Bold,
-                                                      style = MaterialTheme.typography.labelMedium
-                                                  )
-                                              }
-
-                                              Surface(
-                                                  color = Pale,
-                                                  shape = RoundedCornerShape(10.dp),
-                                                  modifier = Modifier.fillMaxWidth()
-                                              ) {
-                                                  Column(
-                                                      modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
-                                                      verticalArrangement = Arrangement.spacedBy(3.dp)
-                                                  ) {
-                                                      Text(
-                                                          record.district,
-                                                          color = Navy,
-                                                          fontWeight = FontWeight.SemiBold,
-                                                          style = MaterialTheme.typography.bodySmall
-                                                      )
-                                                      Text(
-                                                          (if (hindi) "विधानसभा " else "Assembly ") + record.acNumber + " · " + record.assemblyName,
-                                                          color = Muted,
-                                                          style = MaterialTheme.typography.bodySmall
-                                                      )
-                                                  }
-                                              }
-
-                                              Row(
-                                                  modifier = Modifier.fillMaxWidth(),
-                                                  verticalAlignment = Alignment.CenterVertically,
-                                                  horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                              ) {
-                                                  Column(modifier = Modifier.weight(1f)) {
-                                                      Text(
-                                                          if (hindi) "संपर्क नंबर" else "CONTACT NUMBER",
-                                                          color = Muted,
-                                                          style = MaterialTheme.typography.labelSmall
-                                                      )
-                                                      Text(
-                                                          record.mobileNumber.ifBlank { if (hindi) "उपलब्ध नहीं" else "Not available" },
-                                                          color = Navy,
-                                                          fontWeight = FontWeight.Bold,
-                                                          style = MaterialTheme.typography.titleSmall
-                                                      )
-                                                  }
-                                                  if (record.mobileNumber.isNotBlank()) {
-                                                      Button(
-                                                          onClick = {
-                                                              context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(record.mobileNumber))))
-                                                          },
-                                                          shape = RoundedCornerShape(11.dp),
-                                                          contentPadding = PaddingValues(horizontal = 16.dp, vertical = 11.dp)
-                                                      ) {
-                                                          Icon(Icons.Default.Call, contentDescription = null)
-                                                          Spacer(Modifier.width(7.dp))
-                                                          Text(if (hindi) "कॉल" else "Call")
+                                                      Spacer(Modifier.width(10.dp))
+                                                      Column(modifier = Modifier.weight(1f)) {
+                                                          Text(record.bloName.ifBlank { if (hindi) "नाम उपलब्ध नहीं" else "Name unavailable" }, color = Navy, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                                                          Text(record.designation.ifBlank { if (hindi) "बूथ लेवल अधिकारी" else "Booth Level Officer" }, color = Muted, style = MaterialTheme.typography.bodySmall)
                                                       }
+                                                      Surface(color = Color(0xFFFFF1D6), shape = RoundedCornerShape(8.dp)) { Text("BLO", color = NavyDark, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp), style = MaterialTheme.typography.labelSmall) }
                                                   }
-                                                  OutlinedButton(
-                                                      onClick = {
+                                                  HorizontalDivider(color = Color(0xFFE8EEF2))
+                                                  Text(record.partName.ifBlank { if (hindi) "मतदान केंद्र का नाम उपलब्ध नहीं" else "Polling station name unavailable" }, color = NavyDark, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
+                                                  Text((if (hindi) "भाग संख्या " else "PART NO. ") + record.partNo, color = Blue, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                                                  Text(record.district + " · " + record.acNumber + " " + record.assemblyName, color = Muted, style = MaterialTheme.typography.bodySmall)
+                                                  Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                                      Column(modifier = Modifier.weight(1f)) {
+                                                          Text(if (hindi) "संपर्क नंबर" else "CONTACT NUMBER", color = Muted, style = MaterialTheme.typography.labelSmall)
+                                                          Text(record.mobileNumber.ifBlank { if (hindi) "उपलब्ध नहीं" else "Not available" }, color = Navy, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                                                      }
+                                                      if (record.mobileNumber.isNotBlank()) {
+                                                          Button(onClick = { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(record.mobileNumber)))) }, shape = RoundedCornerShape(10.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)) {
+                                                              Icon(Icons.Default.Call, contentDescription = null)
+                                                              Spacer(Modifier.width(4.dp))
+                                                              Text(if (hindi) "कॉल" else "Call")
+                                                          }
+                                                      }
+                                                      OutlinedButton(onClick = {
                                                           val destination = listOf(record.partName, record.assemblyName, record.district, "Rajasthan").filter { it.isNotBlank() }.joinToString(", ")
                                                           context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=" + Uri.encode(destination))))
-                                                      },
-                                                      shape = RoundedCornerShape(11.dp),
-                                                      contentPadding = PaddingValues(horizontal = 10.dp, vertical = 11.dp)
-                                                  ) { Text(if (hindi) "दिशाएँ" else "Directions") }
+                                                      }, shape = RoundedCornerShape(10.dp), contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp)) { Text(if (hindi) "दिशाएँ" else "Directions") }
+                                                  }
+                                              }
+                                          }
+                                      }
+                                      if (rows.size < matchingTotal) {
+                                          item(key = "load-more") {
+                                              OutlinedButton(onClick = { scope.launch {
+                                                  val offset = rows.size
+                                                  val next = db.dao().search(query.trim(), district, assembly, part, 150, offset)
+                                                  rows = rows + next
+                                              } }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+                                                  Text(if (hindi) "और परिणाम लोड करें (" + (matchingTotal - rows.size) + " शेष)" else "Load more (" + (matchingTotal - rows.size) + " remaining)")
                                               }
                                           }
                                       }
                                   }
                               }
-                              if (rows.size < matchingTotal) {
-                                  item(key = "load-more") {
-                                      OutlinedButton(
-                                          onClick = { scope.launch {
-                                              val offset = rows.size
-                                              val next = db.dao().search(query.trim(), district, assembly, part, 150, offset)
-                                              rows = rows + next
-                                          } },
-                                          modifier = Modifier.fillMaxWidth(),
-                                          shape = RoundedCornerShape(12.dp)
-                                      ) { Text(if (hindi) "और परिणाम लोड करें (" + (matchingTotal - rows.size) + " शेष)" else "Load more (" + (matchingTotal - rows.size) + " remaining)") }
-                                  }
-                              }
                           }
-                          }
-                      }
                       }
                   }
               }
