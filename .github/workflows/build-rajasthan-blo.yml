@@ -52,7 +52,11 @@ jobs:
           ASSET_DIR="$ANDROID_PROJECT_DIR/app/src/main/assets"
           mkdir -p "$ASSET_DIR"
           printf 'Name,User ID,Status,Officer Type,District,Assembly,Office Address,Mobile No.,Landline,E-mail\n' > "$ASSET_DIR/ero_directory.csv"
-          cat "$GITHUB_WORKSPACE"/ero_directory_part*.csv >> "$ASSET_DIR/ero_directory.csv"
+          for PART in "$GITHUB_WORKSPACE"/ero_directory_part*.csv; do
+            while IFS= read -r LINE || [ -n "$LINE" ]; do
+              printf '%s\\n' "$LINE" >> "$ASSET_DIR/ero_directory.csv"
+            done < "$PART"
+          done
           test "$(wc -l < "$ASSET_DIR/ero_directory.csv")" -eq 201
           echo "ERO dataset rows: $(($(wc -l < "$ASSET_DIR/ero_directory.csv") - 1))"
 
