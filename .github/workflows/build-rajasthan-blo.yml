@@ -87,32 +87,18 @@ jobs:
           import android.os.Bundle
           import androidx.activity.ComponentActivity
           import androidx.activity.compose.setContent
-          import androidx.compose.foundation.layout.Arrangement
-          import androidx.compose.foundation.layout.Column
-          import androidx.compose.foundation.layout.Row
-          import androidx.compose.foundation.layout.fillMaxSize
-          import androidx.compose.foundation.layout.fillMaxWidth
-          import androidx.compose.foundation.layout.padding
+          import androidx.compose.foundation.background
+          import androidx.compose.foundation.layout.*
           import androidx.compose.foundation.lazy.LazyColumn
           import androidx.compose.foundation.lazy.items
-          import androidx.compose.material3.Button
-          import androidx.compose.material3.ElevatedCard
-          import androidx.compose.material3.MaterialTheme
-          import androidx.compose.material3.OutlinedButton
-          import androidx.compose.material3.OutlinedTextField
-          import androidx.compose.material3.Scaffold
-          import androidx.compose.material3.Text
-          import androidx.compose.material3.TextButton
-          import androidx.compose.material3.TopAppBar
-          import androidx.compose.material3.lightColorScheme
-          import androidx.compose.runtime.Composable
-          import androidx.compose.runtime.LaunchedEffect
-          import androidx.compose.runtime.getValue
-          import androidx.compose.runtime.mutableIntStateOf
-          import androidx.compose.runtime.mutableStateOf
-          import androidx.compose.runtime.remember
-          import androidx.compose.runtime.rememberCoroutineScope
-          import androidx.compose.runtime.setValue
+          import androidx.compose.foundation.shape.RoundedCornerShape
+          import androidx.compose.material.icons.Icons
+          import androidx.compose.material.icons.filled.Call
+          import androidx.compose.material.icons.filled.Search
+          import androidx.compose.material.icons.filled.Tune
+          import androidx.compose.material3.*
+          import androidx.compose.runtime.*
+          import androidx.compose.ui.Alignment
           import androidx.compose.ui.Modifier
           import androidx.compose.ui.graphics.Color
           import androidx.compose.ui.platform.LocalContext
@@ -120,14 +106,22 @@ jobs:
           import androidx.compose.ui.unit.dp
           import kotlinx.coroutines.launch
 
+          private val Navy = Color(0xFF102A43)
+          private val Blue = Color(0xFF176B87)
+          private val Saffron = Color(0xFFE88924)
+          private val Pale = Color(0xFFF3F7FA)
+          private val Muted = Color(0xFF526777)
+
           class MainActivity : ComponentActivity() {
               override fun onCreate(savedInstanceState: Bundle?) {
                   super.onCreate(savedInstanceState)
+                  window.statusBarColor = android.graphics.Color.rgb(16, 42, 67)
+                  window.navigationBarColor = android.graphics.Color.rgb(16, 42, 67)
                   setContent { DirectoryApp(BloDatabase.get(this)) }
               }
           }
 
-          @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+          @OptIn(ExperimentalMaterial3Api::class)
           @Composable
           fun DirectoryApp(db: BloDatabase) {
               val context = LocalContext.current
@@ -135,116 +129,223 @@ jobs:
               var hindi by remember { mutableStateOf(false) }
               var query by remember { mutableStateOf("") }
               var district by remember { mutableStateOf("") }
+              var assembly by remember { mutableStateOf("") }
+              var part by remember { mutableStateOf("") }
+              var districts by remember { mutableStateOf(emptyList<String>()) }
+              var assemblies by remember { mutableStateOf(emptyList<AssemblyOption>()) }
+              var parts by remember { mutableStateOf(emptyList<PartOption>()) }
               var rows by remember { mutableStateOf(emptyList<BloRecord>()) }
               var total by remember { mutableIntStateOf(0) }
+              var districtOpen by remember { mutableStateOf(false) }
+              var assemblyOpen by remember { mutableStateOf(false) }
+              var partOpen by remember { mutableStateOf(false) }
+              var loading by remember { mutableStateOf(true) }
+
+              suspend fun runSearch() {
+                  rows = db.dao().search(query.trim(), district, assembly, part)
+              }
 
               LaunchedEffect(Unit) {
                   seedFromAssets(context, db)
+                  districts = db.dao().districts()
                   total = db.dao().count()
-                  rows = db.dao().search("", "", "")
+                  rows = db.dao().search("", "", "", "")
+                  loading = false
               }
 
               MaterialTheme(
                   colorScheme = lightColorScheme(
-                      primary = Color(0xFF17365D),
-                      secondary = Color(0xFFFF9933)
-                  )
+                      primary = Navy,
+                      secondary = Saffron,
+                      tertiary = Blue,
+                      background = Pale,
+                      surface = Color.White
+                  ),
+                  typography = Typography()
               ) {
                   Scaffold(
+                      containerColor = Pale,
                       topBar = {
-                          TopAppBar(
-                              title = {
-                                  Column {
-                                      Text(
-                                          if (hindi) "राजस्थान BLO निर्देशिका" else "Rajasthan BLO Directory",
-                                          fontWeight = FontWeight.Bold
-                                      )
-                                      Text(
-                                          if (hindi) "निर्वाचन विभाग, राजस्थान" else "Election Department, Rajasthan",
-                                          style = MaterialTheme.typography.labelSmall
-                                      )
+                          Column(
+                              modifier = Modifier.fillMaxWidth().background(Navy)
+                                  .statusBarsPadding().padding(start = 20.dp, end = 12.dp, top = 12.dp, bottom = 18.dp)
+                          ) {
+                              Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                  Column(modifier = Modifier.weight(1f)) {
+                                      Text("RAJASTHAN", color = Color(0xFFFFC16B), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                      Text(if (hindi) "BLO निर्देशिका" else "BLO Directory", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                                      Text(if (hindi) "निर्वाचन विभाग, राजस्थान" else "Election Department • Rajasthan", color = Color(0xFFD6E2EC), style = MaterialTheme.typography.bodySmall)
                                   }
-                              },
-                              actions = {
                                   TextButton(onClick = { hindi = !hindi }) {
-                                      Text(if (hindi) "English" else "हिन्दी")
+                                      Text(if (hindi) "ENGLISH" else "हिन्दी", color = Color.White, fontWeight = FontWeight.Bold)
                                   }
                               }
-                          )
+                              Spacer(Modifier.height(14.dp))
+                              Row(
+                                  modifier = Modifier.fillMaxWidth().background(Color.White.copy(alpha = 0.10f), RoundedCornerShape(12.dp)).padding(12.dp),
+                                  verticalAlignment = Alignment.CenterVertically
+                              ) {
+                                  Column(modifier = Modifier.weight(1f)) {
+                                      Text(if (hindi) "मतदान केंद्र सहायता" else "POLLING STATION ASSISTANCE", color = Color(0xFFFFC16B), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                      Text(if (hindi) "अपना बूथ और BLO आसानी से खोजें" else "Find your booth and BLO in seconds", color = Color.White, style = MaterialTheme.typography.bodyMedium)
+                                  }
+                                  Surface(color = Saffron, shape = RoundedCornerShape(10.dp)) {
+                                      Text("BLO", color = Navy, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), fontWeight = FontWeight.ExtraBold)
+                                  }
+                              }
+                          }
                       }
-                  ) { padding ->
+                  ) { inset ->
                       Column(
-                          modifier = Modifier.padding(padding).padding(14.dp).fillMaxSize(),
-                          verticalArrangement = Arrangement.spacedBy(8.dp)
+                          modifier = Modifier.fillMaxSize().padding(inset).padding(horizontal = 16.dp),
+                          verticalArrangement = Arrangement.spacedBy(12.dp)
                       ) {
-                          Text(
-                              if (hindi) "अपना BLO और मतदान केंद्र खोजें" else "Find your BLO and polling station",
-                              style = MaterialTheme.typography.titleMedium
-                          )
-                          OutlinedTextField(
-                              value = query,
-                              onValueChange = { query = it },
+                          Spacer(Modifier.height(2.dp))
+                          Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                              Column(modifier = Modifier.weight(1f)) {
+                                  Text(if (hindi) "अपना क्षेत्र चुनें" else "Select your area", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Navy)
+                                  Text(if (hindi) "जिला से भाग तक क्रमवार चुनें" else "Choose District → Assembly → Part", style = MaterialTheme.typography.bodySmall, color = Muted)
+                              }
+                              Surface(color = Color(0xFFE0F2E8), shape = RoundedCornerShape(20.dp)) {
+                                  Text(if (hindi) "ऑफ़लाइन" else "OFFLINE", color = Color(0xFF176B45), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp))
+                              }
+                          }
+
+                          ElevatedCard(
                               modifier = Modifier.fillMaxWidth(),
-                              singleLine = true,
-                              label = { Text(if (hindi) "नाम, भाग संख्या या केंद्र" else "Name, part number or polling station") }
-                          )
-                          OutlinedTextField(
-                              value = district,
-                              onValueChange = { district = it },
-                              modifier = Modifier.fillMaxWidth(),
-                              singleLine = true,
-                              label = { Text(if (hindi) "जिला (वैकल्पिक)" else "District (optional)") },
-                              placeholder = { Text(if (hindi) "सभी जिलों के लिए खाली छोड़ें" else "Leave blank for all districts") }
-                          )
-                          Button(
-                              onClick = {
-                                  scope.launch { rows = db.dao().search(query.trim(), district.trim(), "") }
-                              },
-                              modifier = Modifier.fillMaxWidth()
+                              shape = RoundedCornerShape(18.dp),
+                              colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
+                              elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
                           ) {
-                              Text(if (hindi) "खोजें" else "Search")
+                              Column(modifier = Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                  Row(verticalAlignment = Alignment.CenterVertically) {
+                                      Icon(Icons.Default.Tune, contentDescription = null, tint = Blue)
+                                      Spacer(Modifier.width(8.dp))
+                                      Text(if (hindi) "क्षेत्र फ़िल्टर" else "LOCATION FILTERS", color = Navy, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+                                  }
+
+                                  Box {
+                                      OutlinedButton(onClick = { districtOpen = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 13.dp)) {
+                                          Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.Start) {
+                                              Text(if (hindi) "जिला *" else "DISTRICT *", style = MaterialTheme.typography.labelSmall, color = Muted)
+                                              Text(district.ifBlank { if (hindi) "जिला चुनें" else "Select district" }, color = Navy, fontWeight = FontWeight.Medium)
+                                          }
+                                          Text("⌄", color = Blue, style = MaterialTheme.typography.titleLarge)
+                                      }
+                                      DropdownMenu(expanded = districtOpen, onDismissRequest = { districtOpen = false }, modifier = Modifier.heightIn(max = 320.dp)) {
+                                          districts.forEach { item ->
+                                              DropdownMenuItem(text = { Text(item) }, onClick = {
+                                                  district = item; assembly = ""; part = ""; assemblies = emptyList(); parts = emptyList(); districtOpen = false
+                                                  scope.launch { assemblies = db.dao().assembliesForDistrict(district); runSearch() }
+                                              })
+                                          }
+                                      }
+                                  }
+
+                                  Box {
+                                      OutlinedButton(onClick = { if (district.isNotBlank()) assemblyOpen = true }, enabled = district.isNotBlank(), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 13.dp)) {
+                                          Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.Start) {
+                                              Text(if (hindi) "विधानसभा" else "ASSEMBLY", style = MaterialTheme.typography.labelSmall, color = Muted)
+                                              Text(assemblies.firstOrNull { it.acNumber == assembly }?.let { it.acNumber + " - " + it.assemblyName } ?: if (hindi) "विधानसभा चुनें" else "Select assembly", color = Navy, fontWeight = FontWeight.Medium)
+                                          }
+                                          Text("⌄", color = Blue, style = MaterialTheme.typography.titleLarge)
+                                      }
+                                      DropdownMenu(expanded = assemblyOpen, onDismissRequest = { assemblyOpen = false }, modifier = Modifier.heightIn(max = 320.dp)) {
+                                          assemblies.forEach { item ->
+                                              DropdownMenuItem(text = { Text(item.acNumber + " - " + item.assemblyName) }, onClick = {
+                                                  assembly = item.acNumber; part = ""; parts = emptyList(); assemblyOpen = false
+                                                  scope.launch { parts = db.dao().partsForAssembly(district, assembly); runSearch() }
+                                              })
+                                          }
+                                      }
+                                  }
+
+                                  Box {
+                                      OutlinedButton(onClick = { if (assembly.isNotBlank()) partOpen = true }, enabled = assembly.isNotBlank(), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 13.dp)) {
+                                          Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.Start) {
+                                              Text(if (hindi) "भाग / मतदान केंद्र" else "PART / POLLING STATION", style = MaterialTheme.typography.labelSmall, color = Muted)
+                                              Text(parts.firstOrNull { it.partNo == part }?.let { it.partNo + " - " + it.partName } ?: if (hindi) "भाग चुनें" else "Select part", color = Navy, fontWeight = FontWeight.Medium)
+                                          }
+                                          Text("⌄", color = Blue, style = MaterialTheme.typography.titleLarge)
+                                      }
+                                      DropdownMenu(expanded = partOpen, onDismissRequest = { partOpen = false }, modifier = Modifier.heightIn(max = 320.dp)) {
+                                          parts.forEach { item ->
+                                              DropdownMenuItem(text = { Text(item.partNo + " - " + item.partName) }, onClick = {
+                                                  part = item.partNo; partOpen = false; scope.launch { runSearch() }
+                                              })
+                                          }
+                                      }
+                                  }
+
+                                  OutlinedTextField(
+                                      value = query,
+                                      onValueChange = { query = it },
+                                      modifier = Modifier.fillMaxWidth(),
+                                      singleLine = true,
+                                      shape = RoundedCornerShape(12.dp),
+                                      leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Blue) },
+                                      label = { Text(if (hindi) "BLO नाम या केंद्र खोजें" else "Search BLO name or polling station") }
+                                  )
+                                  Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                      Button(onClick = { scope.launch { runSearch() } }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(vertical = 12.dp)) {
+                                          Icon(Icons.Default.Search, contentDescription = null)
+                                          Spacer(Modifier.width(8.dp))
+                                          Text(if (hindi) "खोजें" else "Search")
+                                      }
+                                      OutlinedButton(onClick = {
+                                          query = ""; district = ""; assembly = ""; part = ""; assemblies = emptyList(); parts = emptyList()
+                                          scope.launch { rows = db.dao().search("", "", "", "") }
+                                      }, shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)) {
+                                          Text(if (hindi) "रीसेट" else "Reset")
+                                      }
+                                  }
+                              }
                           }
-                          Text(
-                              if (hindi) "ऑफ़लाइन उपलब्ध • $total रिकॉर्ड" else "Offline data available • $total records",
-                              style = MaterialTheme.typography.labelSmall,
-                              color = MaterialTheme.colorScheme.onSurfaceVariant
-                          )
-                          if (rows.isEmpty()) {
-                              Text(if (hindi) "कोई रिकॉर्ड नहीं मिला।" else "No records found.")
+
+                          Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                              Column(modifier = Modifier.weight(1f)) {
+                                  Text(if (hindi) "BLO परिणाम" else "BLO RESULTS", color = Navy, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                                  Text(if (hindi) "कुल " + total + " रिकॉर्ड • " + rows.size + " दिखाए गए" else total.toString() + " directory records • " + rows.size + " shown", color = Muted, style = MaterialTheme.typography.bodySmall)
+                              }
                           }
-                          LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                              items(items = rows, key = { it.id }) { record ->
-                                  ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-                                      Column(
-                                          modifier = Modifier.padding(12.dp),
-                                          verticalArrangement = Arrangement.spacedBy(3.dp)
-                                      ) {
-                                          Text(
-                                              record.bloName.ifBlank { if (hindi) "नाम उपलब्ध नहीं" else "Name unavailable" },
-                                              style = MaterialTheme.typography.titleMedium,
-                                              fontWeight = FontWeight.Bold
-                                          )
-                                          Text(record.designation, style = MaterialTheme.typography.bodySmall)
-                                          Text("${record.district} | ${record.acNumber} - ${record.assemblyName}")
-                                          Text("${if (hindi) "भाग संख्या" else "Part No."}: ${record.partNo} • ${record.partName}")
-                                          Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+
+                          if (loading) {
+                              LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                          } else if (rows.isEmpty()) {
+                              ElevatedCard(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+                                  Column(modifier = Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                      Text(if (hindi) "कोई रिकॉर्ड नहीं मिला" else "No records found", color = Navy, fontWeight = FontWeight.Bold)
+                                      Text(if (hindi) "कृपया चुने गए फ़िल्टर बदलें।" else "Try changing your filters or search terms.", color = Muted)
+                                  }
+                              }
+                          } else {
+                              LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 20.dp), modifier = Modifier.weight(1f)) {
+                                  items(items = rows, key = { it.id }) { record ->
+                                      ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.elevatedCardColors(containerColor = Color.White), elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)) {
+                                          Column(modifier = Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                                              Row(verticalAlignment = Alignment.Top) {
+                                                  Surface(color = Color(0xFFE7F2F6), shape = RoundedCornerShape(12.dp)) {
+                                                      Text("BLO", color = Blue, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(horizontal = 11.dp, vertical = 10.dp))
+                                                  }
+                                                  Spacer(Modifier.width(10.dp))
+                                                  Column(modifier = Modifier.weight(1f)) {
+                                                      Text(record.bloName.ifBlank { if (hindi) "नाम उपलब्ध नहीं" else "Name unavailable" }, color = Navy, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                                                      if (record.designation.isNotBlank()) Text(record.designation, color = Muted, style = MaterialTheme.typography.bodySmall)
+                                                  }
+                                              }
+                                              HorizontalDivider(color = Color(0xFFE8EEF2))
+                                              Text(record.district + "  •  " + record.acNumber + " - " + record.assemblyName, color = Navy, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                                              Text((if (hindi) "भाग " else "Part ") + record.partNo + " - " + record.partName, color = Muted, style = MaterialTheme.typography.bodySmall)
                                               if (record.mobileNumber.isNotBlank()) {
-                                                  Button(
-                                                      onClick = {
-                                                          context.startActivity(
-                                                              Intent(
-                                                                  Intent.ACTION_DIAL,
-                                                                  Uri.parse("tel:${Uri.encode(record.mobileNumber)}")
-                                                              )
-                                                          )
-                                                      }
-                                                  ) {
-                                                      Text(if (hindi) "कॉल करें" else "Call")
+                                                  Button(onClick = {
+                                                      context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(record.mobileNumber))))
+                                                  }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), contentPadding = PaddingValues(vertical = 10.dp)) {
+                                                      Icon(Icons.Default.Call, contentDescription = null)
+                                                      Spacer(Modifier.width(8.dp))
+                                                      Text(if (hindi) "कॉल करें  •  " + record.mobileNumber else "Call BLO  •  " + record.mobileNumber)
                                                   }
                                               } else {
-                                                  OutlinedButton(onClick = {}, enabled = false) {
-                                                      Text(if (hindi) "फोन उपलब्ध नहीं" else "Phone unavailable")
-                                                  }
+                                                  Text(if (hindi) "फोन नंबर उपलब्ध नहीं" else "Phone number unavailable", color = Muted, style = MaterialTheme.typography.bodySmall)
                                               }
                                           }
                                       }
@@ -255,6 +356,65 @@ jobs:
                   }
               }
           }
+          KOTLIN
+          cat > "$DB" <<'KOTLIN'
+          package com.rajasthan.election.blo
+          import android.content.Context
+          import androidx.room.*
+          import kotlinx.coroutines.Dispatchers
+          import kotlinx.coroutines.withContext
+
+          @Entity(tableName="blo_records", indices=[Index("district"),Index("assemblyName"),Index("partNo"),Index("bloName")])
+          data class BloRecord(
+           @PrimaryKey val id:String,
+           val district:String,
+           val acNumber:String,
+           val assemblyName:String,
+           val partNo:String,
+           val partName:String,
+           val bloName:String,
+           val designation:String,
+           val mobileNumber:String = "",
+           val updatedAt:Long = 0L
+          )
+
+          data class AssemblyOption(val acNumber:String, val assemblyName:String)
+          data class PartOption(val partNo:String, val partName:String)
+
+          @Dao interface BloDao {
+           @Query("SELECT * FROM blo_records WHERE (:q='' OR lower(bloName) LIKE '%'||lower(:q)||'%' OR lower(partName) LIKE '%'||lower(:q)||'%' OR partNo LIKE '%'||:q||'%' OR lower(assemblyName) LIKE '%'||lower(:q)||'%') AND (:district='' OR lower(district)=lower(:district)) AND (:ac='' OR acNumber=:ac) AND (:part='' OR partNo=:part) ORDER BY district,assemblyName,partNo LIMIT 300")
+           suspend fun search(q:String,district:String,ac:String,part:String):List<BloRecord>
+           @Query("SELECT DISTINCT district FROM blo_records WHERE district!='' ORDER BY district") suspend fun districts():List<String>
+           @Query("SELECT DISTINCT acNumber, assemblyName FROM blo_records WHERE lower(district)=lower(:district) ORDER BY CAST(acNumber AS INTEGER), assemblyName") suspend fun assembliesForDistrict(district:String):List<AssemblyOption>
+           @Query("SELECT DISTINCT partNo, partName FROM blo_records WHERE lower(district)=lower(:district) AND acNumber=:ac ORDER BY CAST(partNo AS INTEGER), partName") suspend fun partsForAssembly(district:String,ac:String):List<PartOption>
+           @Query("SELECT COUNT(*) FROM blo_records") suspend fun count():Int
+           @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun upsertAll(rows:List<BloRecord>)
+          }
+          @Database(entities=[BloRecord::class],version=2,exportSchema=true)
+          abstract class BloDatabase:RoomDatabase(){
+           abstract fun dao():BloDao
+           companion object { @Volatile private var instance:BloDatabase?=null
+            fun get(c:Context):BloDatabase=instance?: synchronized(this){instance?:Room.databaseBuilder(c.applicationContext,BloDatabase::class.java,"rajasthan_blo.db").fallbackToDestructiveMigration().build().also{instance=it}}
+           }
+          }
+          suspend fun seedFromAssets(c:Context,db:BloDatabase)=withContext(Dispatchers.IO){
+           if(db.dao().count()>0)return@withContext
+           c.assets.open("blo_directory.csv").bufferedReader(Charsets.UTF_8).useLines{lines->
+            val it=lines.iterator();if(it.hasNext())it.next()
+            val batch=mutableListOf<BloRecord>()
+            while(it.hasNext()){
+             val f=parseCsv(it.next())
+             if(f.size>=8){
+              val id=listOf(f[0],f[1],f[3],f[5],f[7]).joinToString("|").lowercase()
+              batch.add(BloRecord(id,f[0],f[1],f[2],f[3],f[4],f[5],f[6],f[7]))
+              if(batch.size>=500){db.dao().upsertAll(batch.toList());batch.clear()}
+             }
+            }
+            if(batch.isNotEmpty())db.dao().upsertAll(batch)
+           }
+          }
+          fun parseCsv(s:String):List<String>{val a=mutableListOf<String>();val b=StringBuilder();var q=false;var i=0
+           while(i<s.length){val c=s[i];if(c=='"'){if(q&&i+1<s.length&&s[i+1]=='"'){b.append('"');i++}else q=!q}else if(c==','&&!q){a.add(b.toString());b.clear()}else b.append(c);i++};a.add(b.toString());return a}
           KOTLIN
           cat >> "$APP_DIR/build.gradle.kts" <<'GRADLE'
           android {
