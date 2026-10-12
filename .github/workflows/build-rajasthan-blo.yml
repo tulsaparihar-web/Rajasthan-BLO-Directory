@@ -69,10 +69,227 @@ jobs:
         with:
           gradle-version: "8.7"
 
-      - name: Align Java and Kotlin JVM targets
+      - name: Repair and validate Android sources
         shell: bash
         run: |
-          cat >> "$ANDROID_PROJECT_DIR/app/build.gradle.kts" <<'GRADLE'
+          set -euo pipefail
+          APP_DIR="$ANDROID_PROJECT_DIR/app"
+          MAIN="$APP_DIR/src/main/java/in/rajasthan/election/blo/MainActivity.kt"
+          DB="$APP_DIR/src/main/java/in/rajasthan/election/blo/BloDatabase.kt"
+          test -f "$MAIN"
+          test -f "$DB"
+          test -f "$APP_DIR/src/main/assets/blo_directory.csv"
+          sed -i 's/^package in\.rajasthan\.election\.blo$/package com.rajasthan.election.blo/' "$MAIN" "$DB"
+          sed -i 's/namespace = "in\.rajasthan\.election\.blo"/namespace = "com.rajasthan.election.blo"/' "$APP_DIR/build.gradle.kts"
+          sed -i 's/applicationId = "in\.rajasthan\.election\.blo"/applicationId = "com.rajasthan.election.blo"/' "$APP_DIR/build.gradle.kts"
+          cat > "$MAIN" <<'KOTLIN'
+          package com.rajasthan.election.blo
+
+          import android.content.Intent
+          import android.net.Uri
+          import android.os.Bundle
+          import androidx.activity.ComponentActivity
+          import androidx.activity.compose.setContent
+          import androidx.compose.foundation.layout.Arrangement
+          import androidx.compose.foundation.layout.Column
+          import androidx.compose.foundation.layout.Row
+          import androidx.compose.foundation.layout.fillMaxSize
+          import androidx.compose.foundation.layout.fillMaxWidth
+          import androidx.compose.foundation.layout.padding
+          import androidx.compose.foundation.lazy.LazyColumn
+          import androidx.compose.foundation.lazy.items
+          import androidx.compose.material3.Button
+          import androidx.compose.material3.ExperimentalMaterial3Api
+          import androidx.compose.material3.ElevatedCard
+          import androidx.compose.material3.ExposedDropdownMenuBox
+          import androidx.compose.material3.ExposedDropdownMenuDefaults
+          import androidx.compose.material3.DropdownMenuItem
+          import androidx.compose.material3.MaterialTheme
+          import androidx.compose.material3.OutlinedButton
+          import androidx.compose.material3.OutlinedTextField
+          import androidx.compose.material3.Scaffold
+          import androidx.compose.material3.Text
+          import androidx.compose.material3.TextButton
+          import androidx.compose.material3.TopAppBar
+          import androidx.compose.material3.lightColorScheme
+          import androidx.compose.runtime.Composable
+          import androidx.compose.runtime.LaunchedEffect
+          import androidx.compose.runtime.getValue
+          import androidx.compose.runtime.mutableIntStateOf
+          import androidx.compose.runtime.mutableStateOf
+          import androidx.compose.runtime.remember
+          import androidx.compose.runtime.rememberCoroutineScope
+          import androidx.compose.runtime.setValue
+          import androidx.compose.ui.Modifier
+          import androidx.compose.ui.graphics.Color
+          import androidx.compose.ui.platform.LocalContext
+          import androidx.compose.ui.text.font.FontWeight
+          import androidx.compose.ui.unit.dp
+          import kotlinx.coroutines.launch
+
+          class MainActivity : ComponentActivity() {
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  setContent { DirectoryApp(BloDatabase.get(this)) }
+              }
+          }
+
+          @OptIn(ExperimentalMaterial3Api::class)
+          @Composable
+          fun DirectoryApp(db: BloDatabase) {
+              val context = LocalContext.current
+              val scope = rememberCoroutineScope()
+              var hindi by remember { mutableStateOf(false) }
+              var query by remember { mutableStateOf("") }
+              var district by remember { mutableStateOf("") }
+              var districts by remember { mutableStateOf(emptyList<String>()) }
+              var rows by remember { mutableStateOf(emptyList<BloRecord>()) }
+              var total by remember { mutableIntStateOf(0) }
+
+              LaunchedEffect(Unit) {
+                  seedFromAssets(context, db)
+                  districts = db.dao().districts()
+                  total = db.dao().count()
+                  rows = db.dao().search("", "", "")
+              }
+
+              MaterialTheme(
+                  colorScheme = lightColorScheme(
+                      primary = Color(0xFF17365D),
+                      secondary = Color(0xFFFF9933)
+                  )
+              ) {
+                  Scaffold(
+                      topBar = {
+                          TopAppBar(
+                              title = {
+                                  Column {
+                                      Text(
+                                          if (hindi) "राजस्थान BLO निर्देशिका" else "Rajasthan BLO Directory",
+                                          fontWeight = FontWeight.Bold
+                                      )
+                                      Text(
+                                          if (hindi) "निर्वाचन विभाग, राजस्थान" else "Election Department, Rajasthan",
+                                          style = MaterialTheme.typography.labelSmall
+                                      )
+                                  }
+                              },
+                              actions = {
+                                  TextButton(onClick = { hindi = !hindi }) {
+                                      Text(if (hindi) "English" else "हिन्दी")
+                                  }
+                              }
+                          )
+                      }
+                  ) { padding ->
+                      Column(
+                          modifier = Modifier.padding(padding).padding(14.dp).fillMaxSize(),
+                          verticalArrangement = Arrangement.spacedBy(8.dp)
+                      ) {
+                          Text(
+                              if (hindi) "अपना BLO और मतदान केंद्र खोजें" else "Find your BLO and polling station",
+                              style = MaterialTheme.typography.titleMedium
+                          )
+                          OutlinedTextField(
+                              value = query,
+                              onValueChange = { query = it },
+                              modifier = Modifier.fillMaxWidth(),
+                              singleLine = true,
+                              label = { Text(if (hindi) "नाम, भाग संख्या या केंद्र" else "Name, part number or polling station") }
+                          )
+
+                          var expanded by remember { mutableStateOf(false) }
+                          ExposedDropdownMenuBox(
+                              expanded = expanded,
+                              onExpandedChange = { expanded = !expanded }
+                          ) {
+                              OutlinedTextField(
+                                  value = district.ifBlank { if (hindi) "सभी जिले" else "All districts" },
+                                  onValueChange = {},
+                                  readOnly = true,
+                                  modifier = Modifier.menuAnchor().fillMaxWidth(),
+                                  label = { Text(if (hindi) "जिला" else "District") },
+                                  trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }
+                              )
+                              androidx.compose.material3.ExposedDropdownMenu(
+                                  expanded = expanded,
+                                  onDismissRequest = { expanded = false }
+                              ) {
+                                  DropdownMenuItem(
+                                      text = { Text(if (hindi) "सभी जिले" else "All districts") },
+                                      onClick = { district = ""; expanded = false }
+                                  )
+                                  districts.forEach { item ->
+                                      DropdownMenuItem(
+                                          text = { Text(item) },
+                                          onClick = { district = item; expanded = false }
+                                      )
+                                  }
+                              }
+                          }
+
+                          Button(
+                              onClick = {
+                                  scope.launch { rows = db.dao().search(query.trim(), district, "") }
+                              },
+                              modifier = Modifier.fillMaxWidth()
+                          ) {
+                              Text(if (hindi) "खोजें" else "Search")
+                          }
+                          Text(
+                              if (hindi) "ऑफ़लाइन उपलब्ध • $total रिकॉर्ड" else "Offline data available • $total records",
+                              style = MaterialTheme.typography.labelSmall,
+                              color = MaterialTheme.colorScheme.onSurfaceVariant
+                          )
+                          if (rows.isEmpty()) {
+                              Text(if (hindi) "कोई रिकॉर्ड नहीं मिला।" else "No records found.")
+                          }
+
+                          LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                              items(items = rows, key = { it.id }) { record ->
+                                  ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                                      Column(
+                                          modifier = Modifier.padding(12.dp),
+                                          verticalArrangement = Arrangement.spacedBy(3.dp)
+                                      ) {
+                                          Text(
+                                              record.bloName.ifBlank { if (hindi) "नाम उपलब्ध नहीं" else "Name unavailable" },
+                                              style = MaterialTheme.typography.titleMedium,
+                                              fontWeight = FontWeight.Bold
+                                          )
+                                          Text(record.designation, style = MaterialTheme.typography.bodySmall)
+                                          Text("${record.district} | ${record.acNumber} - ${record.assemblyName}")
+                                          Text("${if (hindi) "भाग संख्या" else "Part No."}: ${record.partNo} • ${record.partName}")
+                                          Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                              if (record.mobileNumber.isNotBlank()) {
+                                                  Button(
+                                                      onClick = {
+                                                          context.startActivity(
+                                                              Intent(
+                                                                  Intent.ACTION_DIAL,
+                                                                  Uri.parse("tel:${Uri.encode(record.mobileNumber)}")
+                                                              )
+                                                          )
+                                                      }
+                                                  ) {
+                                                      Text(if (hindi) "कॉल करें" else "Call")
+                                                  }
+                                              } else {
+                                                  OutlinedButton(onClick = {}, enabled = false) {
+                                                      Text(if (hindi) "फोन उपलब्ध नहीं" else "Phone unavailable")
+                                                  }
+                                              }
+                                          }
+                                      }
+                                  }
+                              }
+                          }
+                      }
+                  }
+              }
+          }
+          KOTLIN
+          cat >> "$APP_DIR/build.gradle.kts" <<'GRADLE'
           android {
               compileOptions {
                   sourceCompatibility = JavaVersion.VERSION_17
@@ -80,9 +297,25 @@ jobs:
               }
           }
           GRADLE
+          echo "Source checks:"
+          grep -n '^package ' "$MAIN" "$DB"
+          grep -n 'namespace\|applicationId\|sourceCompatibility\|targetCompatibility' "$APP_DIR/build.gradle.kts"
+          wc -l "$APP_DIR/src/main/assets/blo_directory.csv"
+          test "$(head -n 1 "$APP_DIR/src/main/assets/blo_directory.csv")" = "District,AC Number,Assembly Name,Part No,Part Name,BLO Name,Designation,MobileNumber"
 
       - name: Build debug APK
         run: gradle -p "$ANDROID_PROJECT_DIR" assembleDebug --no-daemon --stacktrace
+
+      - name: Verify APK output
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="$ANDROID_PROJECT_DIR/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          file "$APK"
+          ls -lh "$APK"
+          unzip -t "$APK" >/dev/null
+          echo "APK exists, is non-empty, and is a valid ZIP archive."
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
