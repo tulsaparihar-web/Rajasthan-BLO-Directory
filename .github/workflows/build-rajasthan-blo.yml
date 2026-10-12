@@ -138,6 +138,7 @@ jobs:
               var assemblies by remember { mutableStateOf(emptyList<AssemblyOption>()) }
               var parts by remember { mutableStateOf(emptyList<PartOption>()) }
               var rows by remember { mutableStateOf(emptyList<BloRecord>()) }
+              var matchingTotal by remember { mutableIntStateOf(0) }
               var total by remember { mutableIntStateOf(0) }
               var districtOpen by remember { mutableStateOf(false) }
               var assemblyOpen by remember { mutableStateOf(false) }
@@ -151,8 +152,10 @@ jobs:
                   // Never run a broad, expensive query just because the screen opened.
                   if (term.isBlank() && district.isBlank() && assembly.isBlank() && part.isBlank()) {
                       rows = emptyList()
+                      matchingTotal = 0
                   } else {
-                      rows = db.dao().search(term, district, assembly, part)
+                      matchingTotal = db.dao().countSearch(term, district, assembly, part)
+                      rows = db.dao().search(term, district, assembly, part, 150, 0)
                   }
               }
 
@@ -341,13 +344,14 @@ jobs:
                                   Text(if (hindi) "चुने गए क्षेत्र और खोज शब्द के अनुसार" else "Matching your selected area and search term", color = Muted, style = MaterialTheme.typography.bodySmall)
                               }
                               Surface(color = Color(0xFFE7EEF9), shape = RoundedCornerShape(20.dp)) {
-                                  Text(if (hindi) rows.size.toString() + " मिले" else rows.size.toString() + " found", color = Navy, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
+                                  Text(if (hindi) matchingTotal.toString() + " मिले" else matchingTotal.toString() + " found", color = Navy, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
                               }
                           }
                           Surface(color = Color.White, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                               Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                   Text(listOf(district, assemblies.firstOrNull { it.acNumber == assembly }?.assemblyName.orEmpty(), parts.firstOrNull { it.partNo == part }?.partName.orEmpty()).filter { it.isNotBlank() }.joinToString(" · ").ifBlank { if (hindi) "सभी उपलब्ध क्षेत्र" else "All available areas" }, color = Navy, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
                                   if (query.isNotBlank()) Text((if (hindi) "खोज: " else "Query: ") + query, color = Muted, style = MaterialTheme.typography.bodySmall)
+                                  Text(if (hindi) "दिखाए गए " + rows.size + " / " + matchingTotal else "Showing " + rows.size + " of " + matchingTotal + " matches", color = Muted, style = MaterialTheme.typography.labelSmall)
                               }
                           }
                           Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -556,6 +560,19 @@ jobs:
                                       }
                                   }
                               }
+                              if (rows.size < matchingTotal) {
+                                  item(key = "load-more") {
+                                      OutlinedButton(
+                                          onClick = { scope.launch {
+                                              val offset = rows.size
+                                              val next = db.dao().search(query.trim(), district, assembly, part, 150, offset)
+                                              rows = rows + next
+                                          } },
+                                          modifier = Modifier.fillMaxWidth(),
+                                          shape = RoundedCornerShape(12.dp)
+                                      ) { Text(if (hindi) "और परिणाम लोड करें (" + (matchingTotal - rows.size) + " शेष)" else "Load more (" + (matchingTotal - rows.size) + " remaining)") }
+                                  }
+                              }
                           }
                           }
                       }
@@ -589,8 +606,9 @@ jobs:
           data class PartOption(val partNo:String, val partName:String)
 
           @Dao interface BloDao {
-           @Query("SELECT * FROM blo_records WHERE (:q='' OR lower(bloName) LIKE '%'||lower(:q)||'%' OR lower(partName) LIKE '%'||lower(:q)||'%' OR partNo LIKE '%'||:q||'%' OR lower(assemblyName) LIKE '%'||lower(:q)||'%') AND (:district='' OR lower(district)=lower(:district)) AND (:ac='' OR acNumber=:ac) AND (:part='' OR partNo=:part) ORDER BY district,assemblyName,partNo LIMIT 150")
-           suspend fun search(q:String,district:String,ac:String,part:String):List<BloRecord>
+           @Query("SELECT COUNT(*) FROM blo_records WHERE (:q='' OR lower(bloName) LIKE '%'||lower(:q)||'%' OR lower(partName) LIKE '%'||lower(:q)||'%' OR partNo LIKE '%'||:q||'%' OR lower(assemblyName) LIKE '%'||lower(:q)||'%') AND (:district='' OR lower(district)=lower(:district)) AND (:ac='' OR acNumber=:ac) AND (:part='' OR partNo=:part)") suspend fun countSearch(q:String,district:String,ac:String,part:String):Int
+           @Query("SELECT * FROM blo_records WHERE (:q='' OR lower(bloName) LIKE '%'||lower(:q)||'%' OR lower(partName) LIKE '%'||lower(:q)||'%' OR partNo LIKE '%'||:q||'%' OR lower(assemblyName) LIKE '%'||lower(:q)||'%') AND (:district='' OR lower(district)=lower(:district)) AND (:ac='' OR acNumber=:ac) AND (:part='' OR partNo=:part) ORDER BY district,assemblyName,partNo LIMIT :limit OFFSET :offset")
+           suspend fun search(q:String,district:String,ac:String,part:String,limit:Int,offset:Int):List<BloRecord>
            @Query("SELECT DISTINCT district FROM blo_records WHERE district!='' ORDER BY district") suspend fun districts():List<String>
            @Query("SELECT DISTINCT acNumber, assemblyName FROM blo_records WHERE lower(district)=lower(:district) ORDER BY CAST(acNumber AS INTEGER), assemblyName") suspend fun assembliesForDistrict(district:String):List<AssemblyOption>
            @Query("SELECT DISTINCT partNo, partName FROM blo_records WHERE lower(district)=lower(:district) AND acNumber=:ac ORDER BY CAST(partNo AS INTEGER), partName") suspend fun partsForAssembly(district:String,ac:String):List<PartOption>
