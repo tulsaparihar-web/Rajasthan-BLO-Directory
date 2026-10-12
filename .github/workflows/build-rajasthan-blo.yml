@@ -69,6 +69,18 @@ jobs:
         with:
           gradle-version: "8.7"
 
+      - name: Align Java and Kotlin JVM targets
+        shell: bash
+        run: |
+          cat >> "$ANDROID_PROJECT_DIR/app/build.gradle.kts" <<'GRADLE'
+          android {
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+          }
+          GRADLE
+
       - name: Build debug APK
         run: gradle -p "$ANDROID_PROJECT_DIR" assembleDebug --no-daemon --stacktrace
 
