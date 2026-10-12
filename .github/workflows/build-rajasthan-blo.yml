@@ -15,6 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Locate project ZIP
         id: locate-zip
         shell: bash
@@ -27,9 +30,6 @@ jobs:
           fi
           echo "zip_file=$ZIP_FILE" >> "$GITHUB_OUTPUT"
           echo "Using project ZIP: $ZIP_FILE"
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
       - name: Extract project
         shell: bash
