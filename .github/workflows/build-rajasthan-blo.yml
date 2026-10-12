@@ -261,7 +261,7 @@ jobs:
                                       DropdownMenu(expanded = districtOpen, onDismissRequest = { districtOpen = false }, modifier = Modifier.heightIn(max = 320.dp)) {
                                           districts.forEach { item ->
                                               DropdownMenuItem(text = { Text(item) }, onClick = {
-                                                  district = item; assembly = ""; part = ""; assemblies = emptyList(); parts = emptyList(); districtOpen = false
+                                                  district = item; assembly = ""; part = ""; assemblies = emptyList(); parts = emptyList(); rows = emptyList(); hasSearched = false; districtOpen = false
                                                   scope.launch { assemblies = db.dao().assembliesForDistrict(district) }
                                               })
                                           }
@@ -279,7 +279,7 @@ jobs:
                                       DropdownMenu(expanded = assemblyOpen, onDismissRequest = { assemblyOpen = false }, modifier = Modifier.heightIn(max = 320.dp)) {
                                           assemblies.forEach { item ->
                                               DropdownMenuItem(text = { Text(item.acNumber + " - " + item.assemblyName) }, onClick = {
-                                                  assembly = item.acNumber; part = ""; parts = emptyList(); assemblyOpen = false
+                                                  assembly = item.acNumber; part = ""; parts = emptyList(); rows = emptyList(); hasSearched = false; assemblyOpen = false
                                                   scope.launch { parts = db.dao().partsForAssembly(district, assembly) }
                                               })
                                           }
@@ -297,7 +297,7 @@ jobs:
                                       DropdownMenu(expanded = partOpen, onDismissRequest = { partOpen = false }, modifier = Modifier.heightIn(max = 320.dp)) {
                                           parts.forEach { item ->
                                               DropdownMenuItem(text = { Text(item.partNo + " - " + item.partName) }, onClick = {
-                                                  part = item.partNo; partOpen = false
+                                                  part = item.partNo; rows = emptyList(); hasSearched = false; partOpen = false
                                               })
                                           }
                                       }
@@ -305,7 +305,7 @@ jobs:
 
                                   OutlinedTextField(
                                       value = query,
-                                      onValueChange = { query = it },
+                                      onValueChange = { query = it; rows = emptyList(); hasSearched = false },
                                       modifier = Modifier.fillMaxWidth(),
                                       singleLine = true,
                                       shape = RoundedCornerShape(12.dp),
