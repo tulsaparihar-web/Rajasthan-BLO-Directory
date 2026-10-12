@@ -76,6 +76,7 @@ jobs:
           test -f "$MAIN"
           test -f "$DB"
           test -f "$APP_DIR/src/main/assets/blo_directory.csv"
+          test -f "$APP_DIR/src/main/assets/ero_directory.csv"
           sed -i 's/^package in\.rajasthan\.election\.blo$/package com.rajasthan.election.blo/' "$MAIN" "$DB"
           sed -i 's/namespace = "in\.rajasthan\.election\.blo"/namespace = "com.rajasthan.election.blo"/' "$APP_DIR/build.gradle.kts"
           sed -i 's/applicationId = "in\.rajasthan\.election\.blo"/applicationId = "com.rajasthan.election.blo"/' "$APP_DIR/build.gradle.kts"
@@ -515,7 +516,24 @@ jobs:
            val bloName:String,
            val designation:String,
            val mobileNumber:String = "",
+           val email:String = "",
+           val landline:String = "",
            val updatedAt:Long = 0L
+          )
+
+          @Entity(tableName="ero_records", indices=[Index("district"),Index("assembly"),Index("name")])
+          data class EroRecord(
+           @PrimaryKey val id:String,
+           val name:String,
+           val userId:String,
+           val status:String,
+           val officerType:String,
+           val district:String,
+           val assembly:String,
+           val officeAddress:String,
+           val mobile:String,
+           val landline:String,
+           val email:String
           )
 
           data class AssemblyOption(val acNumber:String, val assemblyName:String)
@@ -529,9 +547,15 @@ jobs:
            @Query("SELECT DISTINCT acNumber, assemblyName FROM blo_records WHERE lower(district)=lower(:district) ORDER BY CAST(acNumber AS INTEGER), assemblyName") suspend fun assembliesForDistrict(district:String):List<AssemblyOption>
            @Query("SELECT DISTINCT partNo, partName FROM blo_records WHERE lower(district)=lower(:district) AND acNumber=:ac ORDER BY CAST(partNo AS INTEGER), partName") suspend fun partsForAssembly(district:String,ac:String):List<PartOption>
            @Query("SELECT COUNT(*) FROM blo_records") suspend fun count():Int
+           @Query("SELECT COUNT(*) FROM ero_records") suspend fun countEro():Int
+           @Query("SELECT DISTINCT district FROM ero_records WHERE district!='' ORDER BY district COLLATE NOCASE") suspend fun eroDistricts():List<String>
+           @Query("SELECT DISTINCT assembly FROM ero_records WHERE lower(district)=lower(:district) AND assembly!='' ORDER BY assembly COLLATE NOCASE") suspend fun eroAssembliesForDistrict(district:String):List<String>
+           @Query("SELECT COUNT(*) FROM ero_records WHERE (:q='' OR lower(name) LIKE '%'||lower(:q)||'%' OR lower(userId) LIKE '%'||lower(:q)||'%' OR lower(mobile) LIKE '%'||lower(:q)||'%' OR lower(officeAddress) LIKE '%'||lower(:q)||'%' OR lower(email) LIKE '%'||lower(:q)||'%') AND (:district='' OR lower(district)=lower(:district)) AND (:assembly='' OR lower(assembly)=lower(:assembly))") suspend fun countEroSearch(q:String,district:String,assembly:String):Int
+           @Query("SELECT * FROM ero_records WHERE (:q='' OR lower(name) LIKE '%'||lower(:q)||'%' OR lower(userId) LIKE '%'||lower(:q)||'%' OR lower(mobile) LIKE '%'||lower(:q)||'%' OR lower(officeAddress) LIKE '%'||lower(:q)||'%' OR lower(email) LIKE '%'||lower(:q)||'%') AND (:district='' OR lower(district)=lower(:district)) AND (:assembly='' OR lower(assembly)=lower(:assembly)) ORDER BY district,assembly,name LIMIT :limit OFFSET :offset") suspend fun searchEro(q:String,district:String,assembly:String,limit:Int,offset:Int):List<EroRecord>
            @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun upsertAll(rows:List<BloRecord>)
+           @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun upsertEroAll(rows:List<EroRecord>)
           }
-          @Database(entities=[BloRecord::class],version=3,exportSchema=true)
+          @Database(entities=[BloRecord::class,EroRecord::class],version=4,exportSchema=true)
           abstract class BloDatabase:RoomDatabase(){
            abstract fun dao():BloDao
            companion object { @Volatile private var instance:BloDatabase?=null
@@ -554,6 +578,23 @@ jobs:
              }
             }
             if(batch.isNotEmpty())db.dao().upsertAll(batch)
+           }
+          }
+          suspend fun seedEroFromAssets(c:Context,db:BloDatabase)=withContext(Dispatchers.IO){
+           if(db.dao().countEro()>0)return@withContext
+           c.assets.open("ero_directory.csv").bufferedReader(Charsets.UTF_8).useLines{lines->
+            val it=lines.iterator();if(it.hasNext())it.next()
+            val batch=mutableListOf<EroRecord>()
+            var sourceRowNumber=0L
+            while(it.hasNext()){
+             val f=parseCsv(it.next())
+             if(f.size>=10){
+              val id="ero-source-row-\${sourceRowNumber++}"
+              batch.add(EroRecord(id,f[0],f[1],f[2],f[3],f[4],f[5],f[6],f[7],f[8],f[9]))
+              if(batch.size>=500){db.dao().upsertEroAll(batch.toList());batch.clear()}
+             }
+            }
+            if(batch.isNotEmpty())db.dao().upsertEroAll(batch)
            }
           }
           fun parseCsv(s:String):List<String>{val a=mutableListOf<String>();val b=StringBuilder();var q=false;var i=0
