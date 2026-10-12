@@ -25,7 +25,6 @@ jobs:
           ZIP_FILE="$(find . -maxdepth 1 -type f -name 'RajasthanBLODirectory_Project*.zip' -print -quit)"
           if [ -z "$ZIP_FILE" ]; then
             echo "::error::No RajasthanBLODirectory_Project*.zip found in the repository root."
-            echo "Upload the project ZIP at the root, keeping its name starting with RajasthanBLODirectory_Project."
             exit 1
           fi
           echo "zip_file=$ZIP_FILE" >> "$GITHUB_OUTPUT"
@@ -41,8 +40,6 @@ jobs:
           ANDROID_PROJECT_DIR="$(find "$RUNNER_TEMP/blo-project" -path '*/android/settings.gradle.kts' -print -quit | xargs -r dirname)"
           if [ -z "$ANDROID_PROJECT_DIR" ]; then
             echo "::error::Could not find android/settings.gradle.kts inside the uploaded ZIP."
-            echo "Check that you uploaded the full RajasthanBLODirectory_Project ZIP."
-            find "$RUNNER_TEMP/blo-project" -maxdepth 3 -type f | head -80
             exit 1
           fi
           echo "ANDROID_PROJECT_DIR=$ANDROID_PROJECT_DIR" >> "$GITHUB_ENV"
@@ -99,11 +96,7 @@ jobs:
           import androidx.compose.foundation.lazy.LazyColumn
           import androidx.compose.foundation.lazy.items
           import androidx.compose.material3.Button
-          import androidx.compose.material3.ExperimentalMaterial3Api
           import androidx.compose.material3.ElevatedCard
-          import androidx.compose.material3.ExposedDropdownMenuBox
-          import androidx.compose.material3.ExposedDropdownMenuDefaults
-          import androidx.compose.material3.DropdownMenuItem
           import androidx.compose.material3.MaterialTheme
           import androidx.compose.material3.OutlinedButton
           import androidx.compose.material3.OutlinedTextField
@@ -134,7 +127,7 @@ jobs:
               }
           }
 
-          @OptIn(ExperimentalMaterial3Api::class)
+          @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
           @Composable
           fun DirectoryApp(db: BloDatabase) {
               val context = LocalContext.current
@@ -142,13 +135,11 @@ jobs:
               var hindi by remember { mutableStateOf(false) }
               var query by remember { mutableStateOf("") }
               var district by remember { mutableStateOf("") }
-              var districts by remember { mutableStateOf(emptyList<String>()) }
               var rows by remember { mutableStateOf(emptyList<BloRecord>()) }
               var total by remember { mutableIntStateOf(0) }
 
               LaunchedEffect(Unit) {
                   seedFromAssets(context, db)
-                  districts = db.dao().districts()
                   total = db.dao().count()
                   rows = db.dao().search("", "", "")
               }
@@ -197,40 +188,17 @@ jobs:
                               singleLine = true,
                               label = { Text(if (hindi) "नाम, भाग संख्या या केंद्र" else "Name, part number or polling station") }
                           )
-
-                          var expanded by remember { mutableStateOf(false) }
-                          ExposedDropdownMenuBox(
-                              expanded = expanded,
-                              onExpandedChange = { expanded = !expanded }
-                          ) {
-                              OutlinedTextField(
-                                  value = district.ifBlank { if (hindi) "सभी जिले" else "All districts" },
-                                  onValueChange = {},
-                                  readOnly = true,
-                                  modifier = Modifier.menuAnchor().fillMaxWidth(),
-                                  label = { Text(if (hindi) "जिला" else "District") },
-                                  trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }
-                              )
-                              androidx.compose.material3.ExposedDropdownMenu(
-                                  expanded = expanded,
-                                  onDismissRequest = { expanded = false }
-                              ) {
-                                  DropdownMenuItem(
-                                      text = { Text(if (hindi) "सभी जिले" else "All districts") },
-                                      onClick = { district = ""; expanded = false }
-                                  )
-                                  districts.forEach { item ->
-                                      DropdownMenuItem(
-                                          text = { Text(item) },
-                                          onClick = { district = item; expanded = false }
-                                      )
-                                  }
-                              }
-                          }
-
+                          OutlinedTextField(
+                              value = district,
+                              onValueChange = { district = it },
+                              modifier = Modifier.fillMaxWidth(),
+                              singleLine = true,
+                              label = { Text(if (hindi) "जिला (वैकल्पिक)" else "District (optional)") },
+                              placeholder = { Text(if (hindi) "सभी जिलों के लिए खाली छोड़ें" else "Leave blank for all districts") }
+                          )
                           Button(
                               onClick = {
-                                  scope.launch { rows = db.dao().search(query.trim(), district, "") }
+                                  scope.launch { rows = db.dao().search(query.trim(), district.trim(), "") }
                               },
                               modifier = Modifier.fillMaxWidth()
                           ) {
@@ -244,7 +212,6 @@ jobs:
                           if (rows.isEmpty()) {
                               Text(if (hindi) "कोई रिकॉर्ड नहीं मिला।" else "No records found.")
                           }
-
                           LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                               items(items = rows, key = { it.id }) { record ->
                                   ElevatedCard(modifier = Modifier.fillMaxWidth()) {
