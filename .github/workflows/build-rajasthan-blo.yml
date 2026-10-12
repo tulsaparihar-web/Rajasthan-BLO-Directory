@@ -45,6 +45,21 @@ jobs:
           echo "ANDROID_PROJECT_DIR=$ANDROID_PROJECT_DIR" >> "$GITHUB_ENV"
           echo "Android project: $ANDROID_PROJECT_DIR"
 
+      - name: Install ERO offline data asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          ASSET_DIR="$ANDROID_PROJECT_DIR/app/src/main/assets"
+          mkdir -p "$ASSET_DIR"
+          printf 'Name,User ID,Status,Officer Type,District,Assembly,Office Address,Mobile No.,Landline,E-mail\n' > "$ASSET_DIR/ero_directory.csv"
+          for PART in "$GITHUB_WORKSPACE"/ero_directory_part*.csv; do
+            while IFS= read -r LINE || [ -n "$LINE" ]; do
+              printf '%s\n' "$LINE" >> "$ASSET_DIR/ero_directory.csv"
+            done < "$PART"
+          done
+          test "$(wc -l < "$ASSET_DIR/ero_directory.csv")" -eq 201
+          echo "ERO dataset rows: $(($(wc -l < "$ASSET_DIR/ero_directory.csv") - 1))"
+
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
@@ -76,6 +91,8 @@ jobs:
           test -f "$MAIN"
           test -f "$DB"
           test -f "$APP_DIR/src/main/assets/blo_directory.csv"
+          test -f "$APP_DIR/src/main/assets/ero_directory.csv"
+          sed -i 's/android:label="Rajasthan BLO Directory"/android:label="BLO and ERO"/' "$APP_DIR/src/main/AndroidManifest.xml"
           sed -i 's/^package in\.rajasthan\.election\.blo$/package com.rajasthan.election.blo/' "$MAIN" "$DB"
           sed -i 's/namespace = "in\.rajasthan\.election\.blo"/namespace = "com.rajasthan.election.blo"/' "$APP_DIR/build.gradle.kts"
           sed -i 's/applicationId = "in\.rajasthan\.election\.blo"/applicationId = "com.rajasthan.election.blo"/' "$APP_DIR/build.gradle.kts"
@@ -130,16 +147,20 @@ jobs:
               val context = LocalContext.current
               val scope = rememberCoroutineScope()
               var hindi by remember { mutableStateOf(false) }
+              var selectedTab by remember { mutableStateOf("BLO") }
               var query by remember { mutableStateOf("") }
               var district by remember { mutableStateOf("") }
               var assembly by remember { mutableStateOf("") }
               var part by remember { mutableStateOf("") }
               var districts by remember { mutableStateOf(emptyList<String>()) }
+              var eroDistricts by remember { mutableStateOf(emptyList<String>()) }
               var assemblies by remember { mutableStateOf(emptyList<AssemblyOption>()) }
+              var eroAssemblies by remember { mutableStateOf(emptyList<String>()) }
               var parts by remember { mutableStateOf(emptyList<PartOption>()) }
               var rows by remember { mutableStateOf(emptyList<BloRecord>()) }
               var matchingTotal by remember { mutableIntStateOf(0) }
               var total by remember { mutableIntStateOf(0) }
+              var eroTotal by remember { mutableIntStateOf(0) }
               var districtOpen by remember { mutableStateOf(false) }
               var assemblyOpen by remember { mutableStateOf(false) }
               var partOpen by remember { mutableStateOf(false) }
@@ -149,13 +170,26 @@ jobs:
 
               suspend fun runSearch() {
                   val term = query.trim()
-                  // Never run a broad, expensive query just because the screen opened.
-                  if (term.isBlank() && district.isBlank() && assembly.isBlank() && part.isBlank()) {
-                      rows = emptyList()
-                      matchingTotal = 0
+                  if (selectedTab == "BLO") {
+                      // Preserve the approved BLO search path and its exact filters.
+                      if (term.isBlank() && district.isBlank() && assembly.isBlank() && part.isBlank()) {
+                          rows = emptyList(); matchingTotal = 0
+                      } else {
+                          matchingTotal = db.dao().countSearch(term, district, assembly, part)
+                          rows = db.dao().search(term, district, assembly, part, 150, 0)
+                      }
                   } else {
-                      matchingTotal = db.dao().countSearch(term, district, assembly, part)
-                      rows = db.dao().search(term, district, assembly, part, 150, 0)
+                      if (term.isBlank() && district.isBlank() && assembly.isBlank()) {
+                          rows = emptyList(); matchingTotal = 0
+                      } else {
+                          matchingTotal = db.dao().countEroSearch(term, district, assembly)
+                          rows = db.dao().searchEro(term, district, assembly, 150, 0).map { ero ->
+                              BloRecord(id=ero.id, district=ero.district, acNumber="", assemblyName=ero.assembly,
+                                  partNo=ero.userId, partName=ero.officeAddress, bloName=ero.name,
+                                  designation="Electoral Registration Officer (ERO)", mobileNumber=ero.mobile,
+                                  email=ero.email, landline=ero.landline)
+                          }
+                      }
                   }
               }
 
@@ -164,8 +198,11 @@ jobs:
                   // loaded into the home screen. Only lightweight counts and districts
                   // are read until the user requests a search.
                   seedFromAssets(context, db)
+                  seedEroFromAssets(context, db)
                   total = db.dao().count()
+                  eroTotal = db.dao().countEro()
                   districts = db.dao().districts()
+                  eroDistricts = db.dao().eroDistricts()
                   rows = emptyList()
                   loading = false
               }
@@ -191,7 +228,7 @@ jobs:
                               Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)) {
                                   Column(modifier = Modifier.weight(1f)) {
                                       Text("RAJASTHAN", color = Color(0xFFFFC16B), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                      Text(if (hindi) "BLO निर्देशिका" else "BLO Directory", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                                      Text(if (hindi) "BLO और ERO निर्देशिका" else "BLO and ERO Directory", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                                       Text(if (hindi) "निर्वाचन विभाग, राजस्थान" else "Election Department • Rajasthan", color = Color(0xFFD6E2EC), style = MaterialTheme.typography.bodySmall)
                                   }
                                   TextButton(onClick = { hindi = !hindi }) {
@@ -204,11 +241,29 @@ jobs:
                                   verticalAlignment = Alignment.CenterVertically
                               ) {
                                   Column(modifier = Modifier.weight(1f)) {
-                                      Text(if (hindi) "मतदान केंद्र सहायता" else "POLLING STATION ASSISTANCE", color = Color(0xFFFFC16B), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                                      Text(if (hindi) "अपना बूथ और BLO आसानी से खोजें" else "Find your booth and BLO in seconds", color = Color.White, style = MaterialTheme.typography.bodyMedium)
+                                      Text(if (selectedTab == "BLO") (if (hindi) "मतदान केंद्र सहायता" else "POLLING STATION ASSISTANCE") else (if (hindi) "विधानसभा अधिकारी निर्देशिका" else "ASSEMBLY OFFICER DIRECTORY"), color = Color(0xFFFFC16B), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                      Text(if (selectedTab == "BLO") (if (hindi) "अपना बूथ और BLO आसानी से खोजें" else "Find your booth and BLO in seconds") else (if (hindi) "जिले और विधानसभा से ERO खोजें" else "Find your ERO by district and assembly"), color = Color.White, style = MaterialTheme.typography.bodyMedium)
                                   }
                                   Surface(color = Saffron, shape = RoundedCornerShape(10.dp)) {
-                                      Text("BLO", color = Navy, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), fontWeight = FontWeight.ExtraBold)
+                                      Text(selectedTab, color = Navy, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), fontWeight = FontWeight.ExtraBold)
+                                  }
+                              }
+                              Row(modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                  listOf("BLO", "ERO").forEach { tab ->
+                                      val active = selectedTab == tab
+                                      Button(onClick = {
+                                          if (selectedTab != tab) {
+                                              selectedTab = tab
+                                              query = ""; district = ""; assembly = ""; part = ""
+                                              assemblies = emptyList(); eroAssemblies = emptyList(); parts = emptyList()
+                                              rows = emptyList(); matchingTotal = 0; hasSearched = false; showResults = false
+                                              scope.launch { districts = if (tab == "BLO") db.dao().districts() else db.dao().eroDistricts() }
+                                          }
+                                      }, modifier = Modifier.weight(1f),
+                                          colors = ButtonDefaults.buttonColors(containerColor = if (active) Saffron else Color.White.copy(alpha = 0.12f), contentColor = if (active) NavyDark else Color.White),
+                                          shape = RoundedCornerShape(12.dp)) {
+                                          Text(if (tab == "BLO") (if (hindi) "BLO • बूथ स्तर" else "BLO • Booth Level") else (if (hindi) "ERO • विधानसभा स्तर" else "ERO • Assembly Level"), fontWeight = FontWeight.Bold)
+                                      }
                                   }
                               }
                           }
@@ -223,8 +278,8 @@ jobs:
                           Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                               ElevatedCard(modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), colors = CardDefaults.elevatedCardColors(containerColor = Color.White), elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)) {
                                   Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp)) {
-                                      Text(total.toString(), color = Navy, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                                      Text(if (hindi) "BLO रिकॉर्ड" else "BLO Records", color = Muted, style = MaterialTheme.typography.labelMedium)
+                                      Text((if (selectedTab == "BLO") total else eroTotal).toString(), color = Navy, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                                      Text(if (selectedTab == "BLO") (if (hindi) "BLO रिकॉर्ड" else "BLO Records") else (if (hindi) "ERO रिकॉर्ड" else "ERO Records"), color = Muted, style = MaterialTheme.typography.labelMedium)
                                   }
                               }
                               ElevatedCard(modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), colors = CardDefaults.elevatedCardColors(containerColor = Color.White), elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)) {
@@ -237,7 +292,7 @@ jobs:
                           Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                               Column(modifier = Modifier.weight(1f)) {
                                   Text(if (hindi) "अपना क्षेत्र चुनें" else "Select your area", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Navy)
-                                  Text(if (hindi) "जिला से भाग तक क्रमवार चुनें" else "Choose District → Assembly → Part", style = MaterialTheme.typography.bodySmall, color = Muted)
+                                  Text(if (selectedTab == "BLO") (if (hindi) "जिला से भाग तक क्रमवार चुनें" else "Choose District → Assembly → Part") else (if (hindi) "जिला और विधानसभा चुनें" else "Choose District → Assembly"), style = MaterialTheme.typography.bodySmall, color = Muted)
                               }
                               Surface(color = Color(0xFFE0F2E8), shape = RoundedCornerShape(20.dp)) {
                                   Text(if (hindi) "ऑफ़लाइन" else "OFFLINE", color = Color(0xFF176B45), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp))
@@ -254,7 +309,7 @@ jobs:
                                   Row(verticalAlignment = Alignment.CenterVertically) {
                                       Icon(Icons.Default.Tune, contentDescription = null, tint = Blue)
                                       Spacer(Modifier.width(8.dp))
-                                      Text(if (hindi) "क्षेत्र फ़िल्टर" else "LOCATION FILTERS", color = Navy, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+                                      Text(if (selectedTab == "BLO") (if (hindi) "क्षेत्र फ़िल्टर" else "LOCATION FILTERS") else (if (hindi) "ERO क्षेत्र फ़िल्टर" else "ERO LOCATION FILTERS"), color = Navy, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
                                   }
 
                                   Box {
@@ -268,12 +323,17 @@ jobs:
                                       DropdownMenu(expanded = districtOpen, onDismissRequest = { districtOpen = false }, modifier = Modifier.heightIn(max = 320.dp)) {
                                           districts.forEach { item ->
                                               DropdownMenuItem(text = { Text(item) }, onClick = {
-                                                  district = item; assembly = ""; part = ""; assemblies = emptyList(); parts = emptyList(); rows = emptyList(); hasSearched = false; districtOpen = false
-                                                  scope.launch { assemblies = db.dao().assembliesForDistrict(district) }
+                                                  district = item; assembly = ""; part = ""; assemblies = emptyList(); eroAssemblies = emptyList(); parts = emptyList(); rows = emptyList(); matchingTotal = 0; hasSearched = false; districtOpen = false
+                                                  scope.launch {
+                                                      if (selectedTab == "BLO") assemblies = db.dao().assembliesForDistrict(district)
+                                                      else eroAssemblies = db.dao().eroAssembliesForDistrict(district)
+                                                  }
                                               })
                                           }
                                       }
                                   }
+
+                                  if (selectedTab == "BLO") {
 
                                   Box {
                                       OutlinedButton(onClick = { if (district.isNotBlank()) assemblyOpen = true }, enabled = district.isNotBlank(), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 13.dp)) {
@@ -309,6 +369,24 @@ jobs:
                                           }
                                       }
                                   }
+                                  } else {
+                                  Box {
+                                      OutlinedButton(onClick = { if (district.isNotBlank()) assemblyOpen = true }, enabled = district.isNotBlank(), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 13.dp)) {
+                                          Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.Start) {
+                                              Text(if (hindi) "विधानसभा *" else "ASSEMBLY *", style = MaterialTheme.typography.labelSmall, color = Muted)
+                                              Text(assembly.ifBlank { if (hindi) "विधानसभा चुनें" else "Select assembly" }, color = Navy, fontWeight = FontWeight.Medium)
+                                          }
+                                          Text("⌄", color = Blue, style = MaterialTheme.typography.titleLarge)
+                                      }
+                                      DropdownMenu(expanded = assemblyOpen, onDismissRequest = { assemblyOpen = false }, modifier = Modifier.heightIn(max = 320.dp)) {
+                                          eroAssemblies.forEach { item ->
+                                              DropdownMenuItem(text = { Text(item) }, onClick = {
+                                                  assembly = item; rows = emptyList(); matchingTotal = 0; hasSearched = false; assemblyOpen = false
+                                              })
+                                          }
+                                      }
+                                  }
+                                  }
 
                                   OutlinedTextField(
                                       value = query,
@@ -317,7 +395,7 @@ jobs:
                                       singleLine = true,
                                       shape = RoundedCornerShape(12.dp),
                                       leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Blue) },
-                                      label = { Text(if (hindi) "BLO नाम या केंद्र खोजें" else "Search BLO name or polling station") }
+                                      label = { Text(if (selectedTab == "BLO") (if (hindi) "BLO नाम या केंद्र खोजें" else "Search BLO name or polling station") else (if (hindi) "ERO नाम, यूज़र ID या कार्यालय खोजें" else "Search ERO name, user ID or office")) }
                                   )
                                   Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                                       Button(onClick = { scope.launch { runSearch(); hasSearched = true; showResults = true } }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(vertical = 12.dp)) {
@@ -343,8 +421,8 @@ jobs:
                           ) {
                               Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                                   Column(modifier = Modifier.weight(1f)) {
-                                      Text(if (hindi) "खोज परिणाम" else "Search Results", color = Navy, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
-                                      Text(if (hindi) "BLO संपर्क सूची" else "BLO contact list", color = Muted, style = MaterialTheme.typography.bodySmall)
+                                      Text(if (selectedTab == "BLO") (if (hindi) "BLO खोज परिणाम" else "BLO Search Results") else (if (hindi) "ERO खोज परिणाम" else "ERO Search Results"), color = Navy, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+                                      Text(if (selectedTab == "BLO") (if (hindi) "BLO संपर्क सूची" else "BLO contact list") else (if (hindi) "विधानसभा स्तर अधिकारी संपर्क सूची" else "Assembly-level officer contact list"), color = Muted, style = MaterialTheme.typography.bodySmall)
                                   }
                                   Surface(color = Color(0xFFE7EEF9), shape = RoundedCornerShape(20.dp)) {
                                       Text(if (hindi) matchingTotal.toString() + " मिले" else matchingTotal.toString() + " found", color = Navy, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
@@ -352,7 +430,7 @@ jobs:
                               }
                               Surface(color = Color.White, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                                   Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                      Text(listOf(district, assemblies.firstOrNull { it.acNumber == assembly }?.assemblyName.orEmpty(), parts.firstOrNull { it.partNo == part }?.partName.orEmpty()).filter { it.isNotBlank() }.joinToString(" · ").ifBlank { if (hindi) "सभी उपलब्ध क्षेत्र" else "All available areas" }, color = Navy, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
+                                      Text((if (selectedTab == "BLO") listOf(district, assemblies.firstOrNull { it.acNumber == assembly }?.assemblyName.orEmpty(), parts.firstOrNull { it.partNo == part }?.partName.orEmpty()) else listOf(district, assembly)).filter { it.isNotBlank() }.joinToString(" · ").ifBlank { if (hindi) "सभी उपलब्ध क्षेत्र" else "All available areas" }, color = Navy, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
                                       if (query.isNotBlank()) Text((if (hindi) "खोज: " else "Query: ") + query, color = Muted, style = MaterialTheme.typography.bodySmall)
                                       Text(if (hindi) "दिखाए गए " + rows.size + " / " + matchingTotal else "Showing " + rows.size + " of " + matchingTotal + " matches", color = Muted, style = MaterialTheme.typography.labelSmall)
                                   }
@@ -383,16 +461,18 @@ jobs:
                                                           Text(record.bloName.ifBlank { if (hindi) "नाम उपलब्ध नहीं" else "Name unavailable" }, color = Navy, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                                                           Text(record.designation.ifBlank { if (hindi) "बूथ लेवल अधिकारी" else "Booth Level Officer" }, color = Muted, style = MaterialTheme.typography.bodySmall)
                                                       }
-                                                      Surface(color = Color(0xFFFFF1D6), shape = RoundedCornerShape(8.dp)) { Text("BLO", color = NavyDark, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp), style = MaterialTheme.typography.labelSmall) }
+                                                      Surface(color = Color(0xFFFFF1D6), shape = RoundedCornerShape(8.dp)) { Text(selectedTab, color = NavyDark, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp), style = MaterialTheme.typography.labelSmall) }
                                                   }
                                                   HorizontalDivider(color = Color(0xFFE8EEF2))
-                                                  Text(record.partName.ifBlank { if (hindi) "मतदान केंद्र का नाम उपलब्ध नहीं" else "Polling station name unavailable" }, color = NavyDark, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
-                                                  Text((if (hindi) "भाग संख्या " else "PART NO. ") + record.partNo, color = Blue, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                                                  Text(record.partName.ifBlank { if (selectedTab == "BLO") (if (hindi) "मतदान केंद्र का नाम उपलब्ध नहीं" else "Polling station name unavailable") else (if (hindi) "कार्यालय का पता उपलब्ध नहीं" else "Office address unavailable") }, color = NavyDark, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
+                                                  Text((if (selectedTab == "BLO") (if (hindi) "भाग संख्या " else "PART NO. ") else (if (hindi) "यूज़र ID " else "USER ID ")) + record.partNo, color = Blue, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
                                                   Text(record.district + " · " + record.acNumber + " " + record.assemblyName, color = Muted, style = MaterialTheme.typography.bodySmall)
                                                   Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                                                       Column(modifier = Modifier.weight(1f)) {
-                                                          Text(if (hindi) "संपर्क नंबर" else "CONTACT NUMBER", color = Muted, style = MaterialTheme.typography.labelSmall)
+                                                          Text(if (hindi) "मोबाइल नंबर" else "MOBILE NUMBER", color = Muted, style = MaterialTheme.typography.labelSmall)
                                                           Text(record.mobileNumber.ifBlank { if (hindi) "उपलब्ध नहीं" else "Not available" }, color = Navy, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                                                          if (selectedTab == "ERO" && record.landline.isNotBlank()) Text((if (hindi) "लैंडलाइन: " else "Landline: ") + record.landline, color = Muted, style = MaterialTheme.typography.bodySmall)
+                                                          if (selectedTab == "ERO" && record.email.isNotBlank()) Text(record.email, color = Blue, style = MaterialTheme.typography.bodySmall)
                                                       }
                                                       if (record.mobileNumber.isNotBlank()) {
                                                           Button(onClick = { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(record.mobileNumber)))) }, shape = RoundedCornerShape(10.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)) {
@@ -413,7 +493,13 @@ jobs:
                                           item(key = "load-more") {
                                               OutlinedButton(onClick = { scope.launch {
                                                   val offset = rows.size
-                                                  val next = db.dao().search(query.trim(), district, assembly, part, 150, offset)
+                                                  val next = if (selectedTab == "BLO") {
+                                                      db.dao().search(query.trim(), district, assembly, part, 150, offset)
+                                                  } else {
+                                                      db.dao().searchEro(query.trim(), district, assembly, 150, offset).map { ero ->
+                                                          BloRecord(id=ero.id, district=ero.district, acNumber="", assemblyName=ero.assembly, partNo=ero.userId, partName=ero.officeAddress, bloName=ero.name, designation="Electoral Registration Officer (ERO)", mobileNumber=ero.mobile, email=ero.email, landline=ero.landline)
+                                                      }
+                                                  }
                                                   rows = rows + next
                                               } }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
                                                   Text(if (hindi) "और परिणाम लोड करें (" + (matchingTotal - rows.size) + " शेष)" else "Load more (" + (matchingTotal - rows.size) + " remaining)")
@@ -446,7 +532,24 @@ jobs:
            val bloName:String,
            val designation:String,
            val mobileNumber:String = "",
+           val email:String = "",
+           val landline:String = "",
            val updatedAt:Long = 0L
+          )
+
+          @Entity(tableName="ero_records", indices=[Index("district"),Index("assembly"),Index("name")])
+          data class EroRecord(
+           @PrimaryKey val id:String,
+           val name:String,
+           val userId:String,
+           val status:String,
+           val officerType:String,
+           val district:String,
+           val assembly:String,
+           val officeAddress:String,
+           val mobile:String,
+           val landline:String,
+           val email:String
           )
 
           data class AssemblyOption(val acNumber:String, val assemblyName:String)
@@ -460,9 +563,15 @@ jobs:
            @Query("SELECT DISTINCT acNumber, assemblyName FROM blo_records WHERE lower(district)=lower(:district) ORDER BY CAST(acNumber AS INTEGER), assemblyName") suspend fun assembliesForDistrict(district:String):List<AssemblyOption>
            @Query("SELECT DISTINCT partNo, partName FROM blo_records WHERE lower(district)=lower(:district) AND acNumber=:ac ORDER BY CAST(partNo AS INTEGER), partName") suspend fun partsForAssembly(district:String,ac:String):List<PartOption>
            @Query("SELECT COUNT(*) FROM blo_records") suspend fun count():Int
+           @Query("SELECT COUNT(*) FROM ero_records") suspend fun countEro():Int
+           @Query("SELECT DISTINCT district FROM ero_records WHERE district!='' ORDER BY district COLLATE NOCASE") suspend fun eroDistricts():List<String>
+           @Query("SELECT DISTINCT assembly FROM ero_records WHERE lower(district)=lower(:district) AND assembly!='' ORDER BY assembly COLLATE NOCASE") suspend fun eroAssembliesForDistrict(district:String):List<String>
+           @Query("SELECT COUNT(*) FROM ero_records WHERE (:q='' OR lower(name) LIKE '%'||lower(:q)||'%' OR lower(userId) LIKE '%'||lower(:q)||'%' OR lower(mobile) LIKE '%'||lower(:q)||'%' OR lower(officeAddress) LIKE '%'||lower(:q)||'%' OR lower(email) LIKE '%'||lower(:q)||'%') AND (:district='' OR lower(district)=lower(:district)) AND (:assembly='' OR lower(assembly)=lower(:assembly))") suspend fun countEroSearch(q:String,district:String,assembly:String):Int
+           @Query("SELECT * FROM ero_records WHERE (:q='' OR lower(name) LIKE '%'||lower(:q)||'%' OR lower(userId) LIKE '%'||lower(:q)||'%' OR lower(mobile) LIKE '%'||lower(:q)||'%' OR lower(officeAddress) LIKE '%'||lower(:q)||'%' OR lower(email) LIKE '%'||lower(:q)||'%') AND (:district='' OR lower(district)=lower(:district)) AND (:assembly='' OR lower(assembly)=lower(:assembly)) ORDER BY district,assembly,name LIMIT :limit OFFSET :offset") suspend fun searchEro(q:String,district:String,assembly:String,limit:Int,offset:Int):List<EroRecord>
            @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun upsertAll(rows:List<BloRecord>)
+           @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun upsertEroAll(rows:List<EroRecord>)
           }
-          @Database(entities=[BloRecord::class],version=3,exportSchema=true)
+          @Database(entities=[BloRecord::class,EroRecord::class],version=4,exportSchema=true)
           abstract class BloDatabase:RoomDatabase(){
            abstract fun dao():BloDao
            companion object { @Volatile private var instance:BloDatabase?=null
@@ -485,6 +594,23 @@ jobs:
              }
             }
             if(batch.isNotEmpty())db.dao().upsertAll(batch)
+           }
+          }
+          suspend fun seedEroFromAssets(c:Context,db:BloDatabase)=withContext(Dispatchers.IO){
+           if(db.dao().countEro()>0)return@withContext
+           c.assets.open("ero_directory.csv").bufferedReader(Charsets.UTF_8).useLines{lines->
+            val it=lines.iterator();if(it.hasNext())it.next()
+            val batch=mutableListOf<EroRecord>()
+            var sourceRowNumber=0L
+            while(it.hasNext()){
+             val f=parseCsv(it.next())
+             if(f.size>=10){
+              val id="ero-source-row-${sourceRowNumber++}"
+              batch.add(EroRecord(id,f[0],f[1],f[2],f[3],f[4],f[5],f[6],f[7],f[8],f[9]))
+              if(batch.size>=500){db.dao().upsertEroAll(batch.toList());batch.clear()}
+             }
+            }
+            if(batch.isNotEmpty())db.dao().upsertEroAll(batch)
            }
           }
           fun parseCsv(s:String):List<String>{val a=mutableListOf<String>();val b=StringBuilder();var q=false;var i=0
