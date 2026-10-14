@@ -101,7 +101,7 @@ jobs:
           test -f "$APP_DIR/src/main/assets/ero_directory.csv"
           test -f "$APP_DIR/src/main/assets/deo_directory.csv"
           test -f "$APP_DIR/src/main/assets/dydeo_directory.csv"
-          sed -i 's/android:label="Rajasthan BLO Directory"/android:label="BLO and ERO"/' "$APP_DIR/src/main/AndroidManifest.xml"
+          sed -i 's/android:label="Rajasthan BLO Directory"/android:label="BLO, ERO, DEO and DyDEO"/' "$APP_DIR/src/main/AndroidManifest.xml"
           sed -i 's/^package in\.rajasthan\.election\.blo$/package com.rajasthan.election.blo/' "$MAIN" "$DB"
           sed -i 's/namespace = "in\.rajasthan\.election\.blo"/namespace = "com.rajasthan.election.blo"/' "$APP_DIR/build.gradle.kts"
           sed -i 's/applicationId = "in\.rajasthan\.election\.blo"/applicationId = "com.rajasthan.election.blo"/' "$APP_DIR/build.gradle.kts"
@@ -114,6 +114,7 @@ jobs:
           import androidx.activity.ComponentActivity
           import androidx.activity.compose.setContent
           import androidx.compose.foundation.background
+          import androidx.compose.foundation.horizontalScroll
           import androidx.compose.foundation.rememberScrollState
           import androidx.compose.foundation.verticalScroll
           import androidx.compose.foundation.layout.*
