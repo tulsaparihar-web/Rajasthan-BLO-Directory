@@ -53,9 +53,6 @@ jobs:
           set -euo pipefail
           ASSET_DIR="$ANDROID_PROJECT_DIR/app/src/main/assets"
           mkdir -p "$ASSET_DIR"
-          mkdir -p "$ANDROID_PROJECT_DIR/app/src/main/res/drawable"
-          base64 -d "$GITHUB_WORKSPACE/election_logo.jpg.base64" > "$ANDROID_PROJECT_DIR/app/src/main/res/drawable/election_rajasthan_logo.jpg"
-          test -s "$ANDROID_PROJECT_DIR/app/src/main/res/drawable/election_rajasthan_logo.jpg"
           printf 'Name,User ID,Status,Officer Type,District,Assembly,Office Address,Mobile No.,Landline,E-mail\n' > "$ASSET_DIR/ero_directory.csv"
           for PART in "$GITHUB_WORKSPACE"/ero_directory_part*.csv; do
             while IFS= read -r LINE || [ -n "$LINE" ]; do
@@ -136,9 +133,6 @@ jobs:
           import androidx.compose.ui.Modifier
           import androidx.compose.ui.graphics.Color
           import androidx.compose.ui.platform.LocalContext
-          import androidx.compose.ui.res.painterResource
-          import androidx.compose.foundation.Image
-          import androidx.compose.ui.layout.ContentScale
           import androidx.compose.ui.text.font.FontWeight
           import androidx.compose.ui.unit.dp
           import kotlinx.coroutines.launch
@@ -265,12 +259,6 @@ jobs:
                           ) {
                               Box(Modifier.fillMaxWidth().height(4.dp).background(Saffron))
                               Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)) {
-                                  Image(
-                                      painter = painterResource(id = R.drawable.election_rajasthan_logo),
-                                      contentDescription = "Election Department Rajasthan logo",
-                                      modifier = Modifier.size(60.dp).padding(end = 8.dp),
-                                      contentScale = ContentScale.Fit
-                                  )
                                   Column(modifier = Modifier.weight(1f)) {
                                       Text("RAJASTHAN GOVERNMENT", color = Color(0xFFFFC16B), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                       Text("Election Department Rajasthan", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
