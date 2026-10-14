@@ -347,7 +347,10 @@ jobs:
                                   Row(verticalAlignment = Alignment.CenterVertically) {
                                       Icon(Icons.Default.Tune, contentDescription = null, tint = Blue)
                                       Spacer(Modifier.width(8.dp))
-                                      Text(if (selectedTab == "BLO") (if (hindi) "क्षेत्र फ़िल्टर" else "LOCATION FILTERS") else (if (hindi) "ERO क्षेत्र फ़िल्टर" else "ERO LOCATION FILTERS"), color = Navy, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+                                      Text(when (selectedTab) { "BLO" -> if (hindi) "क्षेत्र फ़िल्टर" else "LOCATION FILTERS"
+                                      "ERO" -> if (hindi) "ERO क्षेत्र फ़िल्टर" else "ERO LOCATION FILTERS"
+                                      "DEO" -> if (hindi) "DEO जिला फ़िल्टर" else "DEO DISTRICT FILTER"
+                                      else -> if (hindi) "DyDEO जिला फ़िल्टर" else "DyDEO DISTRICT FILTER" }, color = Navy, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
                                   }
 
                                   Box {
