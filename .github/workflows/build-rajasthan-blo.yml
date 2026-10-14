@@ -260,7 +260,7 @@ jobs:
                               Box(Modifier.fillMaxWidth().height(4.dp).background(Saffron))
                               Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)) {
                                   Column(modifier = Modifier.weight(1f)) {
-                                      // Removed the orange RAJASTHAN label as requested
+                                      Text("RAJASTHAN GOVERNMENT", color = Color(0xFFFFC16B), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                       Text("Election Department Rajasthan", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                                       Text("Election Officers Directory", color = Color(0xFFD6E2EC), style = MaterialTheme.typography.bodySmall)
                                   }
