@@ -260,7 +260,7 @@ jobs:
                               Box(Modifier.fillMaxWidth().height(4.dp).background(Saffron))
                               Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)) {
                                   Column(modifier = Modifier.weight(1f)) {
-                                      Text("RAJASTHAN", color = Color(0xFFFFC16B), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                      // Removed the orange RAJASTHAN label as requested
                                       Text("Election Department Rajasthan", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                                       Text("Election Officers Directory", color = Color(0xFFD6E2EC), style = MaterialTheme.typography.bodySmall)
                                   }
@@ -556,6 +556,26 @@ jobs:
                                                           val destination = listOf(record.partName, record.assemblyName, record.district, "Rajasthan").filter { it.isNotBlank() }.joinToString(", ")
                                                           context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=" + Uri.encode(destination))))
                                                       }, shape = RoundedCornerShape(10.dp), contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp)) { Text(if (hindi) "दिशाएँ" else "Directions") }
+                                                  }
+                                                  if (selectedTab != "DEO" && record.mobileNumber.isNotBlank()) {
+                                                      OutlinedButton(
+                                                          onClick = {
+                                                              val digits = record.mobileNumber.filter { it.isDigit() }
+                                                              val whatsappNumber = when {
+                                                                  digits.length == 10 -> "91" + digits
+                                                                  digits.startsWith("0") && digits.length == 11 -> "91" + digits.drop(1)
+                                                                  else -> digits
+                                                              }
+                                                              if (whatsappNumber.isNotBlank()) {
+                                                                  context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/" + whatsappNumber)))
+                                                              }
+                                                          },
+                                                          modifier = Modifier.fillMaxWidth(),
+                                                          shape = RoundedCornerShape(10.dp),
+                                                          contentPadding = PaddingValues(horizontal = 12.dp, vertical = 9.dp)
+                                                      ) {
+                                                          Text(if (hindi) "WhatsApp संदेश भेजें" else "Message on WhatsApp")
+                                                      }
                                                   }
                                               }
                                           }
