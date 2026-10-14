@@ -288,21 +288,30 @@ jobs:
                                   }
                               }
                               Spacer(Modifier.height(4.dp))
-                              Row(modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 12.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                  listOf("BLO", "ERO", "DEO", "DYDEO").forEach { tab ->
-                                      val active = selectedTab == tab
-                                      Button(onClick = {
-                                          if (selectedTab != tab) {
-                                              selectedTab = tab
-                                              query = ""; district = ""; assembly = ""; part = ""
-                                              assemblies = emptyList(); eroAssemblies = emptyList(); parts = emptyList()
-                                              rows = emptyList(); matchingTotal = 0; hasSearched = false; showResults = false
-                                              scope.launch { districts = if (tab == "BLO") db.dao().districts() else db.dao().officerDistricts(tab) }
+                              Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                  listOf(listOf("BLO", "ERO"), listOf("DYDEO", "DEO")).forEach { tabRow ->
+                                      Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                          tabRow.forEach { tab ->
+                                              val active = selectedTab == tab
+                                              Surface(
+                                                  modifier = Modifier.weight(1f).height(42.dp),
+                                                  shape = RoundedCornerShape(10.dp),
+                                                  color = if (active) Saffron else Color.White.copy(alpha = 0.14f),
+                                                  onClick = {
+                                                      if (selectedTab != tab) {
+                                                          selectedTab = tab
+                                                          query = ""; district = ""; assembly = ""; part = ""
+                                                          assemblies = emptyList(); eroAssemblies = emptyList(); parts = emptyList()
+                                                          rows = emptyList(); matchingTotal = 0; hasSearched = false; showResults = false
+                                                          scope.launch { districts = if (tab == "BLO") db.dao().districts() else db.dao().officerDistricts(tab) }
+                                                      }
+                                                  }
+                                              ) {
+                                                  Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                                      Text(if (tab == "DYDEO") "DyDEO" else tab, color = if (active) NavyDark else Color.White, fontWeight = FontWeight.Bold)
+                                                  }
+                                              }
                                           }
-                                      }, modifier = Modifier.width(164.dp),
-                                          colors = ButtonDefaults.buttonColors(containerColor = if (active) Saffron else Color.White.copy(alpha = 0.12f), contentColor = if (active) NavyDark else Color.White),
-                                          shape = RoundedCornerShape(12.dp)) {
-                                          Text(if (tab == "DYDEO") "DyDEO" else tab, fontWeight = FontWeight.Bold)
                                       }
                                   }
                               }
@@ -486,15 +495,27 @@ jobs:
                                   }
                               }
                               Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                  OutlinedButton(onClick = { showResults = false }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp)) { Icon(Icons.Default.Tune, contentDescription = null); Spacer(Modifier.width(6.dp)); Text(if (hindi) "फ़िल्टर बदलें" else "Refine Search") }
-                                  OutlinedButton(onClick = { query = ""; district = ""; assembly = ""; part = ""; assemblies = emptyList(); parts = emptyList(); rows = emptyList(); matchingTotal = 0; hasSearched = false; showResults = false }, shape = RoundedCornerShape(12.dp)) { Text(if (hindi) "रीसेट" else "Reset") }
+                                  Button(onClick = {
+                                      query = ""; district = ""; assembly = ""; part = ""
+                                      assemblies = emptyList(); eroAssemblies = emptyList(); parts = emptyList()
+                                      rows = emptyList(); matchingTotal = 0; hasSearched = false; showResults = false
+                                      districtOpen = false; assemblyOpen = false; partOpen = false
+                                      scope.launch { districts = if (selectedTab == "BLO") db.dao().districts() else db.dao().officerDistricts(selectedTab) }
+                                  }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+                                      Text(if (hindi) "← वापस (फ़िल्टर और खोज रीसेट)" else "← Back (Reset filters & search)")
+                                  }
                               }
                               if (rows.isEmpty()) {
                                   ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
                                       Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                           Text(if (hindi) "कोई रिकॉर्ड नहीं मिला" else "No records found", color = Navy, fontWeight = FontWeight.Bold)
                                           Text(if (hindi) "कृपया फ़िल्टर या खोज शब्द बदलें।" else "Try changing your filters or search terms.", color = Muted)
-                                          Button(onClick = { showResults = false }, shape = RoundedCornerShape(12.dp)) { Text(if (hindi) "वापस जाएँ" else "Back to Search") }
+                                          Button(onClick = {
+                                              query = ""; district = ""; assembly = ""; part = ""
+                                              assemblies = emptyList(); eroAssemblies = emptyList(); parts = emptyList()
+                                              rows = emptyList(); matchingTotal = 0; hasSearched = false; showResults = false
+                                              scope.launch { districts = if (selectedTab == "BLO") db.dao().districts() else db.dao().officerDistricts(selectedTab) }
+                                          }, shape = RoundedCornerShape(12.dp)) { Text(if (hindi) "← वापस (रीसेट)" else "← Back (reset)") }
                                       }
                                   }
                               } else {
