@@ -289,7 +289,10 @@ jobs:
                                       }, modifier = Modifier.width(164.dp),
                                           colors = ButtonDefaults.buttonColors(containerColor = if (active) Saffron else Color.White.copy(alpha = 0.12f), contentColor = if (active) NavyDark else Color.White),
                                           shape = RoundedCornerShape(12.dp)) {
-                                          Text(when (tab) { "BLO" -> if (hindi) "BLO • बूथ स्तर" else "BLO • Booth Level"; "ERO" -> if (hindi) "ERO • विधानसभा स्तर" else "ERO • Assembly Level"; "DEO" -> if (hindi) "DEO • जिला स्तर" else "DEO • District Level"; else -> if (hindi) "DyDEO • जिला स्तर" else "DyDEO • District Level" }, fontWeight = FontWeight.Bold)
+                                          Text(when (tab) { "BLO" -> if (hindi) "BLO • बूथ स्तर" else "BLO • Booth Level"
+                                              "ERO" -> if (hindi) "ERO • विधानसभा स्तर" else "ERO • Assembly Level"
+                                              "DEO" -> if (hindi) "DEO • जिला स्तर" else "DEO • District Level"
+                                              else -> if (hindi) "DyDEO • जिला स्तर" else "DyDEO • District Level" }, fontWeight = FontWeight.Bold)
                                       }
                                   }
                               }
@@ -305,8 +308,14 @@ jobs:
                           Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                               ElevatedCard(modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), colors = CardDefaults.elevatedCardColors(containerColor = Color.White), elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)) {
                                   Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp)) {
-                                      Text((when (selectedTab) { "BLO" -> total; "ERO" -> eroTotal; "DEO" -> deoTotal; else -> dydeoTotal }).toString(), color = Navy, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                                      Text(when (selectedTab) { "BLO" -> if (hindi) "BLO रिकॉर्ड" else "BLO Records"; "ERO" -> if (hindi) "ERO रिकॉर्ड" else "ERO Records"; "DEO" -> if (hindi) "DEO रिकॉर्ड" else "DEO Records"; else -> if (hindi) "DyDEO रिकॉर्ड" else "DyDEO Records" }), color = Muted, style = MaterialTheme.typography.labelMedium)
+                                      Text((when (selectedTab) { "BLO" -> total
+                                          "ERO" -> eroTotal
+                                          "DEO" -> deoTotal
+                                          else -> dydeoTotal }).toString(), color = Navy, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                                      Text(when (selectedTab) { "BLO" -> if (hindi) "BLO रिकॉर्ड" else "BLO Records"
+                                          "ERO" -> if (hindi) "ERO रिकॉर्ड" else "ERO Records"
+                                          "DEO" -> if (hindi) "DEO रिकॉर्ड" else "DEO Records"
+                                          else -> if (hindi) "DyDEO रिकॉर्ड" else "DyDEO Records" }), color = Muted, style = MaterialTheme.typography.labelMedium)
                                   }
                               }
                               ElevatedCard(modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), colors = CardDefaults.elevatedCardColors(containerColor = Color.White), elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)) {
@@ -319,7 +328,9 @@ jobs:
                           Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                               Column(modifier = Modifier.weight(1f)) {
                                   Text(if (hindi) "अपना क्षेत्र चुनें" else "Select your area", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Navy)
-                                  Text(when (selectedTab) { "BLO" -> if (hindi) "जिला से भाग तक क्रमवार चुनें" else "Choose District → Assembly → Part"; "ERO" -> if (hindi) "जिला और विधानसभा चुनें" else "Choose District → Assembly"; else -> if (hindi) "केवल जिला चुनें" else "Choose District only" }), style = MaterialTheme.typography.bodySmall, color = Muted)
+                                  Text(when (selectedTab) { "BLO" -> if (hindi) "जिला से भाग तक क्रमवार चुनें" else "Choose District → Assembly → Part"
+                                      "ERO" -> if (hindi) "जिला और विधानसभा चुनें" else "Choose District → Assembly"
+                                      else -> if (hindi) "केवल जिला चुनें" else "Choose District only" }), style = MaterialTheme.typography.bodySmall, color = Muted)
                               }
                               Surface(color = Color(0xFFE0F2E8), shape = RoundedCornerShape(20.dp)) {
                                   Text(if (hindi) "ऑफ़लाइन" else "OFFLINE", color = Color(0xFF176B45), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp))
@@ -422,7 +433,10 @@ jobs:
                                       singleLine = true,
                                       shape = RoundedCornerShape(12.dp),
                                       leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Blue) },
-                                      label = { Text(when (selectedTab) { "BLO" -> if (hindi) "BLO नाम या केंद्र खोजें" else "Search BLO name or polling station"; "ERO" -> if (hindi) "ERO नाम या कार्यालय खोजें" else "Search ERO name or office"; "DEO" -> if (hindi) "DEO नाम या कार्यालय खोजें" else "Search DEO name or office"; else -> if (hindi) "DyDEO नाम या कार्यालय खोजें" else "Search DyDEO name or office" }) }
+                                      label = { Text(when (selectedTab) { "BLO" -> if (hindi) "BLO नाम या केंद्र खोजें" else "Search BLO name or polling station"
+                                          "ERO" -> if (hindi) "ERO नाम या कार्यालय खोजें" else "Search ERO name or office"
+                                          "DEO" -> if (hindi) "DEO नाम या कार्यालय खोजें" else "Search DEO name or office"
+                                          else -> if (hindi) "DyDEO नाम या कार्यालय खोजें" else "Search DyDEO name or office" }) }
                                   )
                                   Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                                       Button(onClick = { scope.launch { runSearch(); hasSearched = true; showResults = true } }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(vertical = 12.dp)) {
@@ -448,8 +462,14 @@ jobs:
                           ) {
                               Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                                   Column(modifier = Modifier.weight(1f)) {
-                                      Text(when (selectedTab) { "BLO" -> if (hindi) "BLO खोज परिणाम" else "BLO Search Results"; "ERO" -> if (hindi) "ERO खोज परिणाम" else "ERO Search Results"; "DEO" -> if (hindi) "DEO खोज परिणाम" else "DEO Search Results"; else -> if (hindi) "DyDEO खोज परिणाम" else "DyDEO Search Results" }), color = Navy, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
-                                      Text(when (selectedTab) { "BLO" -> if (hindi) "BLO संपर्क सूची" else "BLO contact list"; "ERO" -> if (hindi) "विधानसभा स्तर अधिकारी संपर्क सूची" else "Assembly-level officer contact list"; "DEO" -> if (hindi) "जिला निर्वाचन अधिकारी संपर्क सूची" else "District Election Officer contact list"; else -> if (hindi) "उप जिला निर्वाचन अधिकारी संपर्क सूची" else "Deputy District Election Officer contact list" }), color = Muted, style = MaterialTheme.typography.bodySmall)
+                                      Text(when (selectedTab) { "BLO" -> if (hindi) "BLO खोज परिणाम" else "BLO Search Results"
+                                          "ERO" -> if (hindi) "ERO खोज परिणाम" else "ERO Search Results"
+                                          "DEO" -> if (hindi) "DEO खोज परिणाम" else "DEO Search Results"
+                                          else -> if (hindi) "DyDEO खोज परिणाम" else "DyDEO Search Results" }), color = Navy, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+                                      Text(when (selectedTab) { "BLO" -> if (hindi) "BLO संपर्क सूची" else "BLO contact list"
+                                          "ERO" -> if (hindi) "विधानसभा स्तर अधिकारी संपर्क सूची" else "Assembly-level officer contact list"
+                                          "DEO" -> if (hindi) "जिला निर्वाचन अधिकारी संपर्क सूची" else "District Election Officer contact list"
+                                          else -> if (hindi) "उप जिला निर्वाचन अधिकारी संपर्क सूची" else "Deputy District Election Officer contact list" }), color = Muted, style = MaterialTheme.typography.bodySmall)
                                   }
                                   Surface(color = Color(0xFFE7EEF9), shape = RoundedCornerShape(20.dp)) {
                                       Text(if (hindi) matchingTotal.toString() + " मिले" else matchingTotal.toString() + " found", color = Navy, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
@@ -457,7 +477,9 @@ jobs:
                               }
                               Surface(color = Color.White, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                                   Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                      Text((when (selectedTab) { "BLO" -> listOf(district, assemblies.firstOrNull { it.acNumber == assembly }?.assemblyName.orEmpty(), parts.firstOrNull { it.partNo == part }?.partName.orEmpty()); "ERO" -> listOf(district, assembly); else -> listOf(district) }).filter { it.isNotBlank() }.joinToString(" · ").ifBlank { if (hindi) "सभी उपलब्ध क्षेत्र" else "All available areas" }, color = Navy, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
+                                      Text((when (selectedTab) { "BLO" -> listOf(district, assemblies.firstOrNull { it.acNumber == assembly }?.assemblyName.orEmpty(), parts.firstOrNull { it.partNo == part }?.partName.orEmpty())
+                                          "ERO" -> listOf(district, assembly)
+                                          else -> listOf(district) }).filter { it.isNotBlank() }.joinToString(" · ").ifBlank { if (hindi) "सभी उपलब्ध क्षेत्र" else "All available areas" }, color = Navy, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
                                       if (query.isNotBlank()) Text((if (hindi) "खोज: " else "Query: ") + query, color = Muted, style = MaterialTheme.typography.bodySmall)
                                       Text(if (hindi) "दिखाए गए " + rows.size + " / " + matchingTotal else "Showing " + rows.size + " of " + matchingTotal + " matches", color = Muted, style = MaterialTheme.typography.labelSmall)
                                   }
