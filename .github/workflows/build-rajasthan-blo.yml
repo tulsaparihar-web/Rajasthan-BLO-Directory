@@ -267,10 +267,18 @@ jobs:
                                   TextButton(onClick = {
                                       if (!syncing) { syncDialog = true; syncing = true; syncMessage = "Starting sync…"; syncResults = emptyList()
                                           scope.launch {
-                                              val sources = listOf(Triple("BLO","https://election.rajasthan.gov.in/ED_Directory_Web/data/BLO.json","BLO"), Triple("ERO","https://election.rajasthan.gov.in/ED_Directory_Web/data/ERO.json","ERO"), Triple("DEO","https://election.rajasthan.gov.in/ED_Directory_Web/data/DEO.json","DEO"), Triple("DyDEO","https://election.rajasthan.gov.in/ED_Directory_Web/data/DyDEO.json","DYDEO"))
-                                              for ((label,url,type) in sources) { syncMessage = "Syncing: " + label; val result = try { syncDirectory(db,label,type,url) } catch(e:Exception) { "Failed: " + label + " — " + (e.message ?: "Unknown error") }; syncResults = syncResults + result }
+                                              val source = when(selectedTab) {
+                                                  "BLO" -> Triple("BLO","https://election.rajasthan.gov.in/ED_Directory_Web/data/BLO.json","BLO")
+                                                  "ERO" -> Triple("ERO","https://election.rajasthan.gov.in/ED_Directory_Web/data/ERO.json","ERO")
+                                                  "DEO" -> Triple("DEO","https://election.rajasthan.gov.in/ED_Directory_Web/data/DEO.json","DEO")
+                                                  else -> Triple("DyDEO","https://election.rajasthan.gov.in/ED_Directory_Web/data/DyDEO.json","DYDEO")
+                                              }
+                                              syncMessage = "Syncing: " + source.first
+                                              val result = try { syncDirectory(db,source.first,source.third,source.second) } catch(e:Exception) { "Failed: " + source.first + " — " + (e.message ?: "Unknown error") }
+                                              syncResults = listOf(result)
                                               total=db.dao().count(); eroTotal=db.dao().countEro(); deoTotal=db.dao().countOfficer("DEO"); dydeoTotal=db.dao().countOfficer("DYDEO")
                                               districts=if(selectedTab=="BLO") db.dao().districts() else db.dao().officerDistricts(selectedTab)
+                                              eroDistricts=db.dao().eroDistricts()
                                               rows=emptyList(); matchingTotal=0; hasSearched=false; showResults=false; syncMessage="Sync finished"; syncing=false
                                           }
                                       }
