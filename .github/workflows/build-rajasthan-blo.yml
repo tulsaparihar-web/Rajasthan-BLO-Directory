@@ -262,19 +262,7 @@ jobs:
                                       Text(if (hindi) "ENGLISH" else "हिन्दी", color = Color.White, fontWeight = FontWeight.Bold)
                                   }
                               }
-                              Spacer(Modifier.height(14.dp))
-                              Row(
-                                  modifier = Modifier.fillMaxWidth().background(Color.White.copy(alpha = 0.10f), RoundedCornerShape(12.dp)).padding(12.dp),
-                                  verticalAlignment = Alignment.CenterVertically
-                              ) {
-                                  Column(modifier = Modifier.weight(1f)) {
-                                      Text(if (selectedTab == "BLO") (if (hindi) "मतदान केंद्र सहायता" else "POLLING STATION ASSISTANCE") else (if (hindi) "निर्वाचन अधिकारी निर्देशिका" else "ELECTION OFFICER DIRECTORY"), color = Color(0xFFFFC16B), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                                      Text(if (selectedTab == "BLO") (if (hindi) "अपना बूथ और BLO आसानी से खोजें" else "Find your booth and BLO in seconds") else if (selectedTab == "ERO") (if (hindi) "जिले और विधानसभा से ERO खोजें" else "Find your ERO by district and assembly") else (if (hindi) "केवल जिले से अधिकारी खोजें" else "Find district officers by district"), color = Color.White, style = MaterialTheme.typography.bodyMedium)
-                                  }
-                                  Surface(color = Saffron, shape = RoundedCornerShape(10.dp)) {
-                                      Text(selectedTab, color = Navy, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), fontWeight = FontWeight.ExtraBold)
-                                  }
-                              }
+                              Spacer(Modifier.height(4.dp))
                               Row(modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 12.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                   listOf("BLO", "ERO", "DEO", "DYDEO").forEach { tab ->
                                       val active = selectedTab == tab
@@ -289,10 +277,7 @@ jobs:
                                       }, modifier = Modifier.width(164.dp),
                                           colors = ButtonDefaults.buttonColors(containerColor = if (active) Saffron else Color.White.copy(alpha = 0.12f), contentColor = if (active) NavyDark else Color.White),
                                           shape = RoundedCornerShape(12.dp)) {
-                                          Text(when (tab) { "BLO" -> if (hindi) "BLO • बूथ स्तर" else "BLO • Booth Level"
-                                              "ERO" -> if (hindi) "ERO • विधानसभा स्तर" else "ERO • Assembly Level"
-                                              "DEO" -> if (hindi) "DEO • जिला स्तर" else "DEO • District Level"
-                                              else -> if (hindi) "DyDEO • जिला स्तर" else "DyDEO • District Level" }, fontWeight = FontWeight.Bold)
+                                          Text(if (tab == "DYDEO") "DyDEO" else tab, fontWeight = FontWeight.Bold)
                                       }
                                   }
                               }
@@ -325,18 +310,6 @@ jobs:
                                   }
                               }
                           }
-                          Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                              Column(modifier = Modifier.weight(1f)) {
-                                  Text(if (hindi) "अपना क्षेत्र चुनें" else "Select your area", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Navy)
-                                  Text(when (selectedTab) { "BLO" -> if (hindi) "जिला से भाग तक क्रमवार चुनें" else "Choose District → Assembly → Part"
-                                      "ERO" -> if (hindi) "जिला और विधानसभा चुनें" else "Choose District → Assembly"
-                                      else -> if (hindi) "केवल जिला चुनें" else "Choose District only" }, style = MaterialTheme.typography.bodySmall, color = Muted)
-                              }
-                              Surface(color = Color(0xFFE0F2E8), shape = RoundedCornerShape(20.dp)) {
-                                  Text(if (hindi) "ऑफ़लाइन" else "OFFLINE", color = Color(0xFF176B45), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp))
-                              }
-                          }
-
                           ElevatedCard(
                               modifier = Modifier.fillMaxWidth(),
                               shape = RoundedCornerShape(18.dp),
