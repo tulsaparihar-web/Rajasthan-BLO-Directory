@@ -315,7 +315,7 @@ jobs:
                                       Text(when (selectedTab) { "BLO" -> if (hindi) "BLO रिकॉर्ड" else "BLO Records"
                                           "ERO" -> if (hindi) "ERO रिकॉर्ड" else "ERO Records"
                                           "DEO" -> if (hindi) "DEO रिकॉर्ड" else "DEO Records"
-                                          else -> if (hindi) "DyDEO रिकॉर्ड" else "DyDEO Records" }), color = Muted, style = MaterialTheme.typography.labelMedium)
+                                          else -> if (hindi) "DyDEO रिकॉर्ड" else "DyDEO Records" }, color = Muted, style = MaterialTheme.typography.labelMedium)
                                   }
                               }
                               ElevatedCard(modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), colors = CardDefaults.elevatedCardColors(containerColor = Color.White), elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)) {
@@ -330,7 +330,7 @@ jobs:
                                   Text(if (hindi) "अपना क्षेत्र चुनें" else "Select your area", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Navy)
                                   Text(when (selectedTab) { "BLO" -> if (hindi) "जिला से भाग तक क्रमवार चुनें" else "Choose District → Assembly → Part"
                                       "ERO" -> if (hindi) "जिला और विधानसभा चुनें" else "Choose District → Assembly"
-                                      else -> if (hindi) "केवल जिला चुनें" else "Choose District only" }), style = MaterialTheme.typography.bodySmall, color = Muted)
+                                      else -> if (hindi) "केवल जिला चुनें" else "Choose District only" }, style = MaterialTheme.typography.bodySmall, color = Muted)
                               }
                               Surface(color = Color(0xFFE0F2E8), shape = RoundedCornerShape(20.dp)) {
                                   Text(if (hindi) "ऑफ़लाइन" else "OFFLINE", color = Color(0xFF176B45), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp))
@@ -465,11 +465,11 @@ jobs:
                                       Text(when (selectedTab) { "BLO" -> if (hindi) "BLO खोज परिणाम" else "BLO Search Results"
                                           "ERO" -> if (hindi) "ERO खोज परिणाम" else "ERO Search Results"
                                           "DEO" -> if (hindi) "DEO खोज परिणाम" else "DEO Search Results"
-                                          else -> if (hindi) "DyDEO खोज परिणाम" else "DyDEO Search Results" }), color = Navy, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+                                          else -> if (hindi) "DyDEO खोज परिणाम" else "DyDEO Search Results" }, color = Navy, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
                                       Text(when (selectedTab) { "BLO" -> if (hindi) "BLO संपर्क सूची" else "BLO contact list"
                                           "ERO" -> if (hindi) "विधानसभा स्तर अधिकारी संपर्क सूची" else "Assembly-level officer contact list"
                                           "DEO" -> if (hindi) "जिला निर्वाचन अधिकारी संपर्क सूची" else "District Election Officer contact list"
-                                          else -> if (hindi) "उप जिला निर्वाचन अधिकारी संपर्क सूची" else "Deputy District Election Officer contact list" }), color = Muted, style = MaterialTheme.typography.bodySmall)
+                                          else -> if (hindi) "उप जिला निर्वाचन अधिकारी संपर्क सूची" else "Deputy District Election Officer contact list" }, color = Muted, style = MaterialTheme.typography.bodySmall)
                                   }
                                   Surface(color = Color(0xFFE7EEF9), shape = RoundedCornerShape(20.dp)) {
                                       Text(if (hindi) matchingTotal.toString() + " मिले" else matchingTotal.toString() + " found", color = Navy, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
