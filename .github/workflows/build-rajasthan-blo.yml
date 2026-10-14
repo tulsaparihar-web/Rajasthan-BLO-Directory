@@ -63,8 +63,8 @@ jobs:
           echo "ERO dataset rows: $(($(wc -l < "$ASSET_DIR/ero_directory.csv") - 1))"
           cp "$GITHUB_WORKSPACE/deo_directory.csv" "$ASSET_DIR/deo_directory.csv"
           cp "$GITHUB_WORKSPACE/dydeo_directory.csv" "$ASSET_DIR/dydeo_directory.csv"
-          test "$(wc -l < "$ASSET_DIR/deo_directory.csv")" -eq 42
-          test "$(wc -l < "$ASSET_DIR/dydeo_directory.csv")" -eq 42
+          test "$(awk 'END { print NR }' "$ASSET_DIR/deo_directory.csv")" -eq 42
+          test "$(awk 'END { print NR }' "$ASSET_DIR/dydeo_directory.csv")" -eq 42
           echo "DEO dataset rows: 41; DyDEO dataset rows: 41"
 
       - name: Set up Java 17
