@@ -102,6 +102,7 @@ jobs:
           test -f "$APP_DIR/src/main/assets/deo_directory.csv"
           test -f "$APP_DIR/src/main/assets/dydeo_directory.csv"
           sed -i 's/android:label="Rajasthan BLO Directory"/android:label="BLO, ERO, DEO and DyDEO"/' "$APP_DIR/src/main/AndroidManifest.xml"
+          sed -i '/<application/i\    <uses-permission android:name="android.permission.INTERNET" />' "$APP_DIR/src/main/AndroidManifest.xml"
           sed -i 's/^package in\.rajasthan\.election\.blo$/package com.rajasthan.election.blo/' "$MAIN" "$DB"
           sed -i 's/namespace = "in\.rajasthan\.election\.blo"/namespace = "com.rajasthan.election.blo"/' "$APP_DIR/build.gradle.kts"
           sed -i 's/applicationId = "in\.rajasthan\.election\.blo"/applicationId = "com.rajasthan.election.blo"/' "$APP_DIR/build.gradle.kts"
@@ -124,6 +125,7 @@ jobs:
           import androidx.compose.material.icons.Icons
           import androidx.compose.material.icons.filled.Call
           import androidx.compose.material.icons.filled.Search
+          import androidx.compose.material.icons.filled.Sync
           import androidx.compose.material.icons.filled.Tune
           import androidx.compose.material3.*
           import androidx.compose.runtime.*
@@ -179,6 +181,10 @@ jobs:
               var loading by remember { mutableStateOf(true) }
               var hasSearched by remember { mutableStateOf(false) }
               var showResults by remember { mutableStateOf(false) }
+              var syncDialog by remember { mutableStateOf(false) }
+              var syncing by remember { mutableStateOf(false) }
+              var syncMessage by remember { mutableStateOf("") }
+              var syncResults by remember { mutableStateOf(emptyList<String>()) }
 
               suspend fun runSearch() {
                   val term = query.trim()
@@ -258,6 +264,17 @@ jobs:
                                       Text(if (hindi) "BLO, ERO, DEO और DyDEO निर्देशिका" else "BLO, ERO, DEO & DyDEO Directory", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                                       Text(if (hindi) "निर्वाचन विभाग, राजस्थान" else "Election Department • Rajasthan", color = Color(0xFFD6E2EC), style = MaterialTheme.typography.bodySmall)
                                   }
+                                  TextButton(onClick = {
+                                      if (!syncing) { syncDialog = true; syncing = true; syncMessage = "Starting sync…"; syncResults = emptyList()
+                                          scope.launch {
+                                              val sources = listOf(Triple("BLO","https://election.rajasthan.gov.in/ED_Directory_Web/data/BLO.json","BLO"), Triple("ERO","https://election.rajasthan.gov.in/ED_Directory_Web/data/ERO.json","ERO"), Triple("DEO","https://election.rajasthan.gov.in/ED_Directory_Web/data/DEO.json","DEO"), Triple("DyDEO","https://election.rajasthan.gov.in/ED_Directory_Web/data/DyDEO.json","DYDEO"))
+                                              for ((label,url,type) in sources) { syncMessage = "Syncing: " + label; val result = try { syncDirectory(db,label,type,url) } catch(e:Exception) { "Failed: " + label + " — " + (e.message ?: "Unknown error") }; syncResults = syncResults + result }
+                                              total=db.dao().count(); eroTotal=db.dao().countEro(); deoTotal=db.dao().countOfficer("DEO"); dydeoTotal=db.dao().countOfficer("DYDEO")
+                                              districts=if(selectedTab=="BLO") db.dao().districts() else db.dao().officerDistricts(selectedTab)
+                                              rows=emptyList(); matchingTotal=0; hasSearched=false; showResults=false; syncMessage="Sync finished"; syncing=false
+                                          }
+                                      }
+                                  }) { Icon(Icons.Default.Sync,contentDescription=null,tint=Color.White); Spacer(Modifier.width(4.dp)); Text(if(hindi) "सिंक" else "Sync",color=Color.White,fontWeight=FontWeight.Bold) }
                                   TextButton(onClick = { hindi = !hindi }) {
                                       Text(if (hindi) "ENGLISH" else "हिन्दी", color = Color.White, fontWeight = FontWeight.Bold)
                                   }
@@ -541,6 +558,7 @@ jobs:
                       }
                   }
               }
+              if(syncDialog) AlertDialog(onDismissRequest={if(!syncing) syncDialog=false}, title={Text(if(hindi) "निर्देशिका सिंक" else "Directory Sync")}, text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){ if(syncing) Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){CircularProgressIndicator(modifier=Modifier.size(22.dp),strokeWidth=2.dp);Text(syncMessage)} else Text(syncMessage,fontWeight=FontWeight.SemiBold); syncResults.forEach{Text(it,style=MaterialTheme.typography.bodySmall)}; if(syncing) Text(if(hindi) "सत्यापन के बाद ही डेटा बदलेगा।" else "Data is replaced only after validation; existing offline data is preserved.",style=MaterialTheme.typography.bodySmall,color=Muted)}}, confirmButton={TextButton(onClick={syncDialog=false},enabled=!syncing){Text(if(hindi) "बंद करें" else "Close")}})
           }
           KOTLIN
           cat > "$DB" <<'KOTLIN'
@@ -549,6 +567,11 @@ jobs:
           import androidx.room.*
           import kotlinx.coroutines.Dispatchers
           import kotlinx.coroutines.withContext
+          import org.json.JSONArray
+          import org.json.JSONObject
+          import java.net.HttpURLConnection
+          import java.net.URL
+          import java.util.Locale
 
           @Entity(tableName="blo_records", indices=[Index("district"),Index("assemblyName"),Index("partNo"),Index("bloName")])
           data class BloRecord(
@@ -604,6 +627,11 @@ jobs:
            @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun upsertAll(rows:List<BloRecord>)
            @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun upsertEroAll(rows:List<EroRecord>)
           }
+           @Query("DELETE FROM blo_records") suspend fun deleteAllBlo()
+           @Query("DELETE FROM ero_records WHERE upper(officerType)=upper(:type)") suspend fun deleteOfficerType(type:String)
+           @Transaction suspend fun replaceBlo(rows:List<BloRecord>) { deleteAllBlo(); rows.chunked(1000).forEach { upsertAll(it) } }
+           @Transaction suspend fun replaceOfficerType(type:String,rows:List<EroRecord>) { deleteOfficerType(type); rows.chunked(500).forEach { upsertEroAll(it) } }
+
           @Database(entities=[BloRecord::class,EroRecord::class],version=5,exportSchema=true)
           abstract class BloDatabase:RoomDatabase(){
            abstract fun dao():BloDao
@@ -647,7 +675,17 @@ jobs:
            }
           }
           fun parseCsv(s:String):List<String>{val a=mutableListOf<String>();val b=StringBuilder();var q=false;var i=0
-           while(i<s.length){val c=s[i];if(c=='"'){if(q&&i+1<s.length&&s[i+1]=='"'){b.append('"');i++}else q=!q}else if(c==','&&!q){a.add(b.toString());b.clear()}else b.append(c);i++};a.add(b.toString());return a}
+            while(i<s.length){val c=s[i];if(c=='"'){if(q&&i+1<s.length&&s[i+1]=='"'){b.append('"');i++}else q=!q}else if(c==','&&!q){a.add(b.toString());b.clear()}else b.append(c);i++};a.add(b.toString());return a}
+           private fun normKey(v:String)=v.lowercase(Locale.ROOT).filter{it.isLetterOrDigit()}
+           private fun JSONObject.field(vararg aliases:String):String { val a=aliases.map{normKey(it)}.toSet(); val it=keys(); while(it.hasNext()){val k=it.next();if(normKey(k) in a){val v=opt(k);if(v!=null&&v!=JSONObject.NULL)return v.toString().trim()}};return "" }
+           private fun parseRows(text:String):List<JSONObject>{val root=org.json.JSONTokener(text).nextValue();val a=when(root){is JSONArray->root;is JSONObject->{var x:JSONArray?=null;for(k in listOf("data","records","items","results","BLO","ERO","DEO","DyDEO","directory")){val v=root.opt(k);if(v is JSONArray){x=v;break}};x?:throw IllegalArgumentException("Expected JSON array or data/records array")};else->throw IllegalArgumentException("Unexpected JSON root")};if(a.length()==0)throw IllegalArgumentException("Empty directory response");return (0 until a.length()).map{a.optJSONObject(it)?:throw IllegalArgumentException("Invalid record at row "+(it+1))}}
+           suspend fun syncDirectory(db:BloDatabase,label:String,type:String,url:String):String=withContext(Dispatchers.IO){
+            val c=(URL(url).openConnection() as HttpURLConnection).apply{requestMethod="GET";connectTimeout=20000;readTimeout=45000;setRequestProperty("Accept","application/json");setRequestProperty("Cache-Control","no-cache")}
+            try{if(c.responseCode !in 200..299)throw IllegalStateException("HTTP "+c.responseCode);val text=c.inputStream.bufferedReader(Charsets.UTF_8).use{it.readText()};val rows=parseRows(text)
+             if(type=="BLO"){val data=rows.mapIndexed{i,o->val d=o.field("District","District Name");val ac=o.field("AC Number","AC No","Assembly Number","Assembly No","ACNumber");val an=o.field("Assembly Name","Assembly","AC Name","Constituency");val p=o.field("Part No","Part Number","Part No.");val pn=o.field("Part Name","Polling Station","Polling Station Name");val n=o.field("BLO Name","Name","User Name","Officer Name");if(d.isBlank()||(ac.isBlank()&&an.isBlank())||p.isBlank()||n.isBlank())throw IllegalArgumentException("BLO row "+(i+1)+" missing required fields");BloRecord(listOf(d,ac,p).joinToString("|"),d,ac,an,p,pn,n,o.field("Designation","Officer Type","Role"),o.field("MobileNumber","Mobile Number","Mobile No","Mobile","User Id","Contact Number","Phone"),o.field("Email","E-mail","Email Id"),o.field("Landline","Land Line"),System.currentTimeMillis())};if(data.size<1000)throw IllegalArgumentException("Only "+data.size+" BLO records; keeping existing data");if(data.map{it.id}.toSet().size!=data.size)throw IllegalArgumentException("Duplicate BLO district/assembly/part keys");db.dao().replaceBlo(data);"✓ BLO: "+data.size+" records synced"
+             }else{val data=rows.mapIndexed{i,o->val n=o.field("Name","User Name","Officer Name","OfficerName");val d=o.field("District","District Name");val a=o.field("Assembly","Assembly Name","Constituency","AC Name");val office=o.field("Office Address","Office","Address","Office Location");val mobile=o.field("Mobile No.","Mobile Number","MobileNumber","Mobile","Contact Number","User Id");if(n.isBlank()||d.isBlank())throw IllegalArgumentException(label+" row "+(i+1)+" missing name/district");val ot=o.field("Officer Type","OfficerType","Type").ifBlank{type};EroRecord(listOf(type,d,a,n,mobile,office).joinToString("|"),o.field("User Id","UserID"),o.field("Status"),ot,d,a,office,mobile,o.field("Landline","Land Line","Office Phone"),o.field("E-mail","Email","Email Id"))};val min=if(type=="ERO")20 else 10;if(data.size<min)throw IllegalArgumentException("Only "+data.size+" "+label+" records; keeping existing data");if(data.map{it.id}.toSet().size!=data.size)throw IllegalArgumentException("Duplicate "+label+" keys");db.dao().replaceOfficerType(type,data); "✓ "+label+": "+data.size+" records synced"}
+            }finally{c.disconnect()}
+           }
           KOTLIN
           cat >> "$APP_DIR/build.gradle.kts" <<'GRADLE'
           android {
