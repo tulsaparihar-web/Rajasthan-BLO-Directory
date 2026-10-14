@@ -185,7 +185,7 @@ jobs:
                           matchingTotal = db.dao().countEroSearch(term, district, assembly)
                           rows = db.dao().searchEro(term, district, assembly, 150, 0).map { ero ->
                               BloRecord(id=ero.id, district=ero.district, acNumber="", assemblyName=ero.assembly,
-                                  partNo=ero.userId, partName=ero.officeAddress, bloName=ero.name,
+                                  partNo="", partName=ero.officeAddress, bloName=ero.name,
                                   designation="Electoral Registration Officer (ERO)", mobileNumber=ero.mobile,
                                   email=ero.email, landline=ero.landline)
                           }
@@ -395,7 +395,7 @@ jobs:
                                       singleLine = true,
                                       shape = RoundedCornerShape(12.dp),
                                       leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Blue) },
-                                      label = { Text(if (selectedTab == "BLO") (if (hindi) "BLO नाम या केंद्र खोजें" else "Search BLO name or polling station") else (if (hindi) "ERO नाम, यूज़र ID या कार्यालय खोजें" else "Search ERO name, user ID or office")) }
+                                      label = { Text(if (selectedTab == "BLO") (if (hindi) "BLO नाम या केंद्र खोजें" else "Search BLO name or polling station") else (if (hindi) "ERO नाम या कार्यालय खोजें" else "Search ERO name or office")) }
                                   )
                                   Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                                       Button(onClick = { scope.launch { runSearch(); hasSearched = true; showResults = true } }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(vertical = 12.dp)) {
@@ -465,7 +465,7 @@ jobs:
                                                   }
                                                   HorizontalDivider(color = Color(0xFFE8EEF2))
                                                   Text(record.partName.ifBlank { if (selectedTab == "BLO") (if (hindi) "मतदान केंद्र का नाम उपलब्ध नहीं" else "Polling station name unavailable") else (if (hindi) "कार्यालय का पता उपलब्ध नहीं" else "Office address unavailable") }, color = NavyDark, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
-                                                  Text((if (selectedTab == "BLO") (if (hindi) "भाग संख्या " else "PART NO. ") else (if (hindi) "यूज़र ID " else "USER ID ")) + record.partNo, color = Blue, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                                                  if (selectedTab == "BLO") { Text((if (hindi) "भाग संख्या " else "PART NO. ") + record.partNo, color = Blue, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium) }
                                                   Text(record.district + " · " + record.acNumber + " " + record.assemblyName, color = Muted, style = MaterialTheme.typography.bodySmall)
                                                   Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                                                       Column(modifier = Modifier.weight(1f)) {
@@ -497,7 +497,7 @@ jobs:
                                                       db.dao().search(query.trim(), district, assembly, part, 150, offset)
                                                   } else {
                                                       db.dao().searchEro(query.trim(), district, assembly, 150, offset).map { ero ->
-                                                          BloRecord(id=ero.id, district=ero.district, acNumber="", assemblyName=ero.assembly, partNo=ero.userId, partName=ero.officeAddress, bloName=ero.name, designation="Electoral Registration Officer (ERO)", mobileNumber=ero.mobile, email=ero.email, landline=ero.landline)
+                                                          BloRecord(id=ero.id, district=ero.district, acNumber="", assemblyName=ero.assembly, partNo="", partName=ero.officeAddress, bloName=ero.name, designation="Electoral Registration Officer (ERO)", mobileNumber=ero.mobile, email=ero.email, landline=ero.landline)
                                                       }
                                                   }
                                                   rows = rows + next
@@ -566,8 +566,8 @@ jobs:
            @Query("SELECT COUNT(*) FROM ero_records") suspend fun countEro():Int
            @Query("SELECT DISTINCT district FROM ero_records WHERE district!='' ORDER BY district COLLATE NOCASE") suspend fun eroDistricts():List<String>
            @Query("SELECT DISTINCT assembly FROM ero_records WHERE lower(district)=lower(:district) AND assembly!='' ORDER BY assembly COLLATE NOCASE") suspend fun eroAssembliesForDistrict(district:String):List<String>
-           @Query("SELECT COUNT(*) FROM ero_records WHERE (:q='' OR lower(name) LIKE '%'||lower(:q)||'%' OR lower(userId) LIKE '%'||lower(:q)||'%' OR lower(mobile) LIKE '%'||lower(:q)||'%' OR lower(officeAddress) LIKE '%'||lower(:q)||'%' OR lower(email) LIKE '%'||lower(:q)||'%') AND (:district='' OR lower(district)=lower(:district)) AND (:assembly='' OR lower(assembly)=lower(:assembly))") suspend fun countEroSearch(q:String,district:String,assembly:String):Int
-           @Query("SELECT * FROM ero_records WHERE (:q='' OR lower(name) LIKE '%'||lower(:q)||'%' OR lower(userId) LIKE '%'||lower(:q)||'%' OR lower(mobile) LIKE '%'||lower(:q)||'%' OR lower(officeAddress) LIKE '%'||lower(:q)||'%' OR lower(email) LIKE '%'||lower(:q)||'%') AND (:district='' OR lower(district)=lower(:district)) AND (:assembly='' OR lower(assembly)=lower(:assembly)) ORDER BY district,assembly,name LIMIT :limit OFFSET :offset") suspend fun searchEro(q:String,district:String,assembly:String,limit:Int,offset:Int):List<EroRecord>
+           @Query("SELECT COUNT(*) FROM ero_records WHERE (:q='' OR lower(name) LIKE '%'||lower(:q)||'%' OR lower(mobile) LIKE '%'||lower(:q)||'%' OR lower(officeAddress) LIKE '%'||lower(:q)||'%' OR lower(email) LIKE '%'||lower(:q)||'%') AND (:district='' OR lower(district)=lower(:district)) AND (:assembly='' OR lower(assembly)=lower(:assembly))") suspend fun countEroSearch(q:String,district:String,assembly:String):Int
+           @Query("SELECT * FROM ero_records WHERE (:q='' OR lower(name) LIKE '%'||lower(:q)||'%' OR lower(mobile) LIKE '%'||lower(:q)||'%' OR lower(officeAddress) LIKE '%'||lower(:q)||'%' OR lower(email) LIKE '%'||lower(:q)||'%') AND (:district='' OR lower(district)=lower(:district)) AND (:assembly='' OR lower(assembly)=lower(:assembly)) ORDER BY district,assembly,name LIMIT :limit OFFSET :offset") suspend fun searchEro(q:String,district:String,assembly:String,limit:Int,offset:Int):List<EroRecord>
            @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun upsertAll(rows:List<BloRecord>)
            @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun upsertEroAll(rows:List<EroRecord>)
           }
