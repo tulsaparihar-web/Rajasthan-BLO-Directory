@@ -6,6 +6,8 @@ on:
     paths:
       - ".github/workflows/build-rajasthan-blo.yml"
       - "RajasthanBLODirectory_Project*.zip"
+      - "deo_directory.csv"
+      - "dydeo_directory.csv"
 
 permissions:
   contents: read
@@ -45,7 +47,7 @@ jobs:
           echo "ANDROID_PROJECT_DIR=$ANDROID_PROJECT_DIR" >> "$GITHUB_ENV"
           echo "Android project: $ANDROID_PROJECT_DIR"
 
-      - name: Install ERO offline data asset
+      - name: Install offline officer data assets
         shell: bash
         run: |
           set -euo pipefail
@@ -59,6 +61,11 @@ jobs:
           done
           test "$(wc -l < "$ASSET_DIR/ero_directory.csv")" -eq 201
           echo "ERO dataset rows: $(($(wc -l < "$ASSET_DIR/ero_directory.csv") - 1))"
+          cp "$GITHUB_WORKSPACE/deo_directory.csv" "$ASSET_DIR/deo_directory.csv"
+          cp "$GITHUB_WORKSPACE/dydeo_directory.csv" "$ASSET_DIR/dydeo_directory.csv"
+          test "$(wc -l < "$ASSET_DIR/deo_directory.csv")" -eq 42
+          test "$(wc -l < "$ASSET_DIR/dydeo_directory.csv")" -eq 42
+          echo "DEO dataset rows: 41; DyDEO dataset rows: 41"
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -92,6 +99,8 @@ jobs:
           test -f "$DB"
           test -f "$APP_DIR/src/main/assets/blo_directory.csv"
           test -f "$APP_DIR/src/main/assets/ero_directory.csv"
+          test -f "$APP_DIR/src/main/assets/deo_directory.csv"
+          test -f "$APP_DIR/src/main/assets/dydeo_directory.csv"
           sed -i 's/android:label="Rajasthan BLO Directory"/android:label="BLO and ERO"/' "$APP_DIR/src/main/AndroidManifest.xml"
           sed -i 's/^package in\.rajasthan\.election\.blo$/package com.rajasthan.election.blo/' "$MAIN" "$DB"
           sed -i 's/namespace = "in\.rajasthan\.election\.blo"/namespace = "com.rajasthan.election.blo"/' "$APP_DIR/build.gradle.kts"
@@ -161,6 +170,8 @@ jobs:
               var matchingTotal by remember { mutableIntStateOf(0) }
               var total by remember { mutableIntStateOf(0) }
               var eroTotal by remember { mutableIntStateOf(0) }
+          var deoTotal by remember { mutableIntStateOf(0) }
+          var dydeoTotal by remember { mutableIntStateOf(0) }
               var districtOpen by remember { mutableStateOf(false) }
               var assemblyOpen by remember { mutableStateOf(false) }
               var partOpen by remember { mutableStateOf(false) }
@@ -178,16 +189,27 @@ jobs:
                           matchingTotal = db.dao().countSearch(term, district, assembly, part)
                           rows = db.dao().search(term, district, assembly, part, 150, 0)
                       }
-                  } else {
+                  } else if (selectedTab == "ERO") {
                       if (term.isBlank() && district.isBlank() && assembly.isBlank()) {
                           rows = emptyList(); matchingTotal = 0
                       } else {
                           matchingTotal = db.dao().countEroSearch(term, district, assembly)
-                          rows = db.dao().searchEro(term, district, assembly, 150, 0).map { ero ->
-                              BloRecord(id=ero.id, district=ero.district, acNumber="", assemblyName=ero.assembly,
-                                  partNo="", partName=ero.officeAddress, bloName=ero.name,
-                                  designation="Electoral Registration Officer (ERO)", mobileNumber=ero.mobile,
-                                  email=ero.email, landline=ero.landline)
+                          rows = db.dao().searchEro(term, district, assembly, 150, 0).map { officer ->
+                              BloRecord(id=officer.id, district=officer.district, acNumber="", assemblyName=officer.assembly,
+                                  partNo="", partName=officer.officeAddress, bloName=officer.name,
+                                  designation="Electoral Registration Officer (ERO)", mobileNumber=officer.mobile,
+                                  email=officer.email, landline=officer.landline)
+                          }
+                      }
+                  } else {
+                      if (term.isBlank() && district.isBlank()) { rows = emptyList(); matchingTotal = 0 }
+                      else {
+                          matchingTotal = db.dao().countOfficerSearch(term, district, selectedTab)
+                          rows = db.dao().searchOfficer(term, district, selectedTab, 150, 0).map { officer ->
+                              BloRecord(id=officer.id, district=officer.district, acNumber="", assemblyName="", partNo="",
+                                  partName=officer.officeAddress, bloName=officer.name,
+                                  designation=if (selectedTab == "DEO") "District Election Officer (DEO)" else "Deputy District Election Officer (DyDEO)",
+                                  mobileNumber=officer.mobile, email=officer.email, landline=officer.landline)
                           }
                       }
                   }
@@ -198,9 +220,13 @@ jobs:
                   // loaded into the home screen. Only lightweight counts and districts
                   // are read until the user requests a search.
                   seedFromAssets(context, db)
-                  seedEroFromAssets(context, db)
+                  seedOfficerFromAssets(context, db, "ero_directory.csv", "ERO")
+                  seedOfficerFromAssets(context, db, "deo_directory.csv", "DEO")
+                  seedOfficerFromAssets(context, db, "dydeo_directory.csv", "DYDEO")
                   total = db.dao().count()
                   eroTotal = db.dao().countEro()
+                  deoTotal = db.dao().countOfficer("DEO")
+                  dydeoTotal = db.dao().countOfficer("DYDEO")
                   districts = db.dao().districts()
                   eroDistricts = db.dao().eroDistricts()
                   rows = emptyList()
@@ -228,7 +254,7 @@ jobs:
                               Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)) {
                                   Column(modifier = Modifier.weight(1f)) {
                                       Text("RAJASTHAN", color = Color(0xFFFFC16B), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                      Text(if (hindi) "BLO और ERO निर्देशिका" else "BLO and ERO Directory", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                                      Text(if (hindi) "BLO, ERO, DEO और DyDEO निर्देशिका" else "BLO, ERO, DEO & DyDEO Directory", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                                       Text(if (hindi) "निर्वाचन विभाग, राजस्थान" else "Election Department • Rajasthan", color = Color(0xFFD6E2EC), style = MaterialTheme.typography.bodySmall)
                                   }
                                   TextButton(onClick = { hindi = !hindi }) {
@@ -241,15 +267,15 @@ jobs:
                                   verticalAlignment = Alignment.CenterVertically
                               ) {
                                   Column(modifier = Modifier.weight(1f)) {
-                                      Text(if (selectedTab == "BLO") (if (hindi) "मतदान केंद्र सहायता" else "POLLING STATION ASSISTANCE") else (if (hindi) "विधानसभा अधिकारी निर्देशिका" else "ASSEMBLY OFFICER DIRECTORY"), color = Color(0xFFFFC16B), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                                      Text(if (selectedTab == "BLO") (if (hindi) "अपना बूथ और BLO आसानी से खोजें" else "Find your booth and BLO in seconds") else (if (hindi) "जिले और विधानसभा से ERO खोजें" else "Find your ERO by district and assembly"), color = Color.White, style = MaterialTheme.typography.bodyMedium)
+                                      Text(if (selectedTab == "BLO") (if (hindi) "मतदान केंद्र सहायता" else "POLLING STATION ASSISTANCE") else (if (hindi) "निर्वाचन अधिकारी निर्देशिका" else "ELECTION OFFICER DIRECTORY"), color = Color(0xFFFFC16B), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                      Text(if (selectedTab == "BLO") (if (hindi) "अपना बूथ और BLO आसानी से खोजें" else "Find your booth and BLO in seconds") else if (selectedTab == "ERO") (if (hindi) "जिले और विधानसभा से ERO खोजें" else "Find your ERO by district and assembly") else (if (hindi) "केवल जिले से अधिकारी खोजें" else "Find district officers by district"), color = Color.White, style = MaterialTheme.typography.bodyMedium)
                                   }
                                   Surface(color = Saffron, shape = RoundedCornerShape(10.dp)) {
                                       Text(selectedTab, color = Navy, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), fontWeight = FontWeight.ExtraBold)
                                   }
                               }
-                              Row(modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                  listOf("BLO", "ERO").forEach { tab ->
+                              Row(modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 12.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                  listOf("BLO", "ERO", "DEO", "DYDEO").forEach { tab ->
                                       val active = selectedTab == tab
                                       Button(onClick = {
                                           if (selectedTab != tab) {
@@ -257,12 +283,12 @@ jobs:
                                               query = ""; district = ""; assembly = ""; part = ""
                                               assemblies = emptyList(); eroAssemblies = emptyList(); parts = emptyList()
                                               rows = emptyList(); matchingTotal = 0; hasSearched = false; showResults = false
-                                              scope.launch { districts = if (tab == "BLO") db.dao().districts() else db.dao().eroDistricts() }
+                                              scope.launch { districts = if (tab == "BLO") db.dao().districts() else db.dao().officerDistricts(tab) }
                                           }
-                                      }, modifier = Modifier.weight(1f),
+                                      }, modifier = Modifier.width(164.dp),
                                           colors = ButtonDefaults.buttonColors(containerColor = if (active) Saffron else Color.White.copy(alpha = 0.12f), contentColor = if (active) NavyDark else Color.White),
                                           shape = RoundedCornerShape(12.dp)) {
-                                          Text(if (tab == "BLO") (if (hindi) "BLO • बूथ स्तर" else "BLO • Booth Level") else (if (hindi) "ERO • विधानसभा स्तर" else "ERO • Assembly Level"), fontWeight = FontWeight.Bold)
+                                          Text(when (tab) { "BLO" -> if (hindi) "BLO • बूथ स्तर" else "BLO • Booth Level"; "ERO" -> if (hindi) "ERO • विधानसभा स्तर" else "ERO • Assembly Level"; "DEO" -> if (hindi) "DEO • जिला स्तर" else "DEO • District Level"; else -> if (hindi) "DyDEO • जिला स्तर" else "DyDEO • District Level" }, fontWeight = FontWeight.Bold)
                                       }
                                   }
                               }
@@ -278,8 +304,8 @@ jobs:
                           Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                               ElevatedCard(modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), colors = CardDefaults.elevatedCardColors(containerColor = Color.White), elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)) {
                                   Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp)) {
-                                      Text((if (selectedTab == "BLO") total else eroTotal).toString(), color = Navy, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                                      Text(if (selectedTab == "BLO") (if (hindi) "BLO रिकॉर्ड" else "BLO Records") else (if (hindi) "ERO रिकॉर्ड" else "ERO Records"), color = Muted, style = MaterialTheme.typography.labelMedium)
+                                      Text((when (selectedTab) { "BLO" -> total; "ERO" -> eroTotal; "DEO" -> deoTotal; else -> dydeoTotal }).toString(), color = Navy, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                                      Text(when (selectedTab) { "BLO" -> if (hindi) "BLO रिकॉर्ड" else "BLO Records"; "ERO" -> if (hindi) "ERO रिकॉर्ड" else "ERO Records"; "DEO" -> if (hindi) "DEO रिकॉर्ड" else "DEO Records"; else -> if (hindi) "DyDEO रिकॉर्ड" else "DyDEO Records" }), color = Muted, style = MaterialTheme.typography.labelMedium)
                                   }
                               }
                               ElevatedCard(modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), colors = CardDefaults.elevatedCardColors(containerColor = Color.White), elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)) {
@@ -292,7 +318,7 @@ jobs:
                           Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                               Column(modifier = Modifier.weight(1f)) {
                                   Text(if (hindi) "अपना क्षेत्र चुनें" else "Select your area", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Navy)
-                                  Text(if (selectedTab == "BLO") (if (hindi) "जिला से भाग तक क्रमवार चुनें" else "Choose District → Assembly → Part") else (if (hindi) "जिला और विधानसभा चुनें" else "Choose District → Assembly"), style = MaterialTheme.typography.bodySmall, color = Muted)
+                                  Text(when (selectedTab) { "BLO" -> if (hindi) "जिला से भाग तक क्रमवार चुनें" else "Choose District → Assembly → Part"; "ERO" -> if (hindi) "जिला और विधानसभा चुनें" else "Choose District → Assembly"; else -> if (hindi) "केवल जिला चुनें" else "Choose District only" }), style = MaterialTheme.typography.bodySmall, color = Muted)
                               }
                               Surface(color = Color(0xFFE0F2E8), shape = RoundedCornerShape(20.dp)) {
                                   Text(if (hindi) "ऑफ़लाइन" else "OFFLINE", color = Color(0xFF176B45), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp))
@@ -326,7 +352,7 @@ jobs:
                                                   district = item; assembly = ""; part = ""; assemblies = emptyList(); eroAssemblies = emptyList(); parts = emptyList(); rows = emptyList(); matchingTotal = 0; hasSearched = false; districtOpen = false
                                                   scope.launch {
                                                       if (selectedTab == "BLO") assemblies = db.dao().assembliesForDistrict(district)
-                                                      else eroAssemblies = db.dao().eroAssembliesForDistrict(district)
+                                                      else if (selectedTab == "ERO") eroAssemblies = db.dao().eroAssembliesForDistrict(district)
                                                   }
                                               })
                                           }
@@ -369,7 +395,7 @@ jobs:
                                           }
                                       }
                                   }
-                                  } else {
+                                  } else if (selectedTab == "ERO") {
                                   Box {
                                       OutlinedButton(onClick = { if (district.isNotBlank()) assemblyOpen = true }, enabled = district.isNotBlank(), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 13.dp)) {
                                           Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.Start) {
@@ -395,7 +421,7 @@ jobs:
                                       singleLine = true,
                                       shape = RoundedCornerShape(12.dp),
                                       leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Blue) },
-                                      label = { Text(if (selectedTab == "BLO") (if (hindi) "BLO नाम या केंद्र खोजें" else "Search BLO name or polling station") else (if (hindi) "ERO नाम या कार्यालय खोजें" else "Search ERO name or office")) }
+                                      label = { Text(when (selectedTab) { "BLO" -> if (hindi) "BLO नाम या केंद्र खोजें" else "Search BLO name or polling station"; "ERO" -> if (hindi) "ERO नाम या कार्यालय खोजें" else "Search ERO name or office"; "DEO" -> if (hindi) "DEO नाम या कार्यालय खोजें" else "Search DEO name or office"; else -> if (hindi) "DyDEO नाम या कार्यालय खोजें" else "Search DyDEO name or office" }) }
                                   )
                                   Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                                       Button(onClick = { scope.launch { runSearch(); hasSearched = true; showResults = true } }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(vertical = 12.dp)) {
@@ -421,8 +447,8 @@ jobs:
                           ) {
                               Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                                   Column(modifier = Modifier.weight(1f)) {
-                                      Text(if (selectedTab == "BLO") (if (hindi) "BLO खोज परिणाम" else "BLO Search Results") else (if (hindi) "ERO खोज परिणाम" else "ERO Search Results"), color = Navy, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
-                                      Text(if (selectedTab == "BLO") (if (hindi) "BLO संपर्क सूची" else "BLO contact list") else (if (hindi) "विधानसभा स्तर अधिकारी संपर्क सूची" else "Assembly-level officer contact list"), color = Muted, style = MaterialTheme.typography.bodySmall)
+                                      Text(when (selectedTab) { "BLO" -> if (hindi) "BLO खोज परिणाम" else "BLO Search Results"; "ERO" -> if (hindi) "ERO खोज परिणाम" else "ERO Search Results"; "DEO" -> if (hindi) "DEO खोज परिणाम" else "DEO Search Results"; else -> if (hindi) "DyDEO खोज परिणाम" else "DyDEO Search Results" }), color = Navy, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+                                      Text(when (selectedTab) { "BLO" -> if (hindi) "BLO संपर्क सूची" else "BLO contact list"; "ERO" -> if (hindi) "विधानसभा स्तर अधिकारी संपर्क सूची" else "Assembly-level officer contact list"; "DEO" -> if (hindi) "जिला निर्वाचन अधिकारी संपर्क सूची" else "District Election Officer contact list"; else -> if (hindi) "उप जिला निर्वाचन अधिकारी संपर्क सूची" else "Deputy District Election Officer contact list" }), color = Muted, style = MaterialTheme.typography.bodySmall)
                                   }
                                   Surface(color = Color(0xFFE7EEF9), shape = RoundedCornerShape(20.dp)) {
                                       Text(if (hindi) matchingTotal.toString() + " मिले" else matchingTotal.toString() + " found", color = Navy, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
@@ -430,7 +456,7 @@ jobs:
                               }
                               Surface(color = Color.White, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                                   Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                      Text((if (selectedTab == "BLO") listOf(district, assemblies.firstOrNull { it.acNumber == assembly }?.assemblyName.orEmpty(), parts.firstOrNull { it.partNo == part }?.partName.orEmpty()) else listOf(district, assembly)).filter { it.isNotBlank() }.joinToString(" · ").ifBlank { if (hindi) "सभी उपलब्ध क्षेत्र" else "All available areas" }, color = Navy, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
+                                      Text((when (selectedTab) { "BLO" -> listOf(district, assemblies.firstOrNull { it.acNumber == assembly }?.assemblyName.orEmpty(), parts.firstOrNull { it.partNo == part }?.partName.orEmpty()); "ERO" -> listOf(district, assembly); else -> listOf(district) }).filter { it.isNotBlank() }.joinToString(" · ").ifBlank { if (hindi) "सभी उपलब्ध क्षेत्र" else "All available areas" }, color = Navy, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
                                       if (query.isNotBlank()) Text((if (hindi) "खोज: " else "Query: ") + query, color = Muted, style = MaterialTheme.typography.bodySmall)
                                       Text(if (hindi) "दिखाए गए " + rows.size + " / " + matchingTotal else "Showing " + rows.size + " of " + matchingTotal + " matches", color = Muted, style = MaterialTheme.typography.labelSmall)
                                   }
@@ -471,14 +497,14 @@ jobs:
                                                       Column(modifier = Modifier.weight(1f)) {
                                                           Text(if (hindi) "मोबाइल नंबर" else "MOBILE NUMBER", color = Muted, style = MaterialTheme.typography.labelSmall)
                                                           Text(record.mobileNumber.ifBlank { if (hindi) "उपलब्ध नहीं" else "Not available" }, color = Navy, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
-                                                          if (selectedTab == "ERO" && record.landline.isNotBlank()) Text((if (hindi) "लैंडलाइन: " else "Landline: ") + record.landline, color = Muted, style = MaterialTheme.typography.bodySmall)
-                                                          if (selectedTab == "ERO" && record.email.isNotBlank()) Text(record.email, color = Blue, style = MaterialTheme.typography.bodySmall)
+                                                          if (selectedTab != "BLO" && record.landline.isNotBlank()) Text((if (hindi) "लैंडलाइन: " else "Landline: ") + record.landline, color = Muted, style = MaterialTheme.typography.bodySmall)
+                                                          if (selectedTab != "BLO" && record.email.isNotBlank()) Text(record.email, color = Blue, style = MaterialTheme.typography.bodySmall)
                                                       }
                                                       if (record.mobileNumber.isNotBlank()) {
-                                                          Button(onClick = { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(record.mobileNumber)))) }, shape = RoundedCornerShape(10.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)) {
+                                                          Button(enabled = selectedTab != "DEO", onClick = { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(record.mobileNumber)))) }, shape = RoundedCornerShape(10.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)) {
                                                               Icon(Icons.Default.Call, contentDescription = null)
                                                               Spacer(Modifier.width(4.dp))
-                                                              Text(if (hindi) "कॉल" else "Call")
+                                                              Text(if (selectedTab == "DEO") (if (hindi) "कॉल प्रतिबंधित" else "Call restricted") else (if (hindi) "कॉल" else "Call"))
                                                           }
                                                       }
                                                       OutlinedButton(onClick = {
@@ -495,9 +521,13 @@ jobs:
                                                   val offset = rows.size
                                                   val next = if (selectedTab == "BLO") {
                                                       db.dao().search(query.trim(), district, assembly, part, 150, offset)
+                                                  } else if (selectedTab == "ERO") {
+                                                      db.dao().searchEro(query.trim(), district, assembly, 150, offset).map { officer ->
+                                                          BloRecord(id=officer.id, district=officer.district, acNumber="", assemblyName=officer.assembly, partNo="", partName=officer.officeAddress, bloName=officer.name, designation="Electoral Registration Officer (ERO)", mobileNumber=officer.mobile, email=officer.email, landline=officer.landline)
+                                                      }
                                                   } else {
-                                                      db.dao().searchEro(query.trim(), district, assembly, 150, offset).map { ero ->
-                                                          BloRecord(id=ero.id, district=ero.district, acNumber="", assemblyName=ero.assembly, partNo="", partName=ero.officeAddress, bloName=ero.name, designation="Electoral Registration Officer (ERO)", mobileNumber=ero.mobile, email=ero.email, landline=ero.landline)
+                                                      db.dao().searchOfficer(query.trim(), district, selectedTab, 150, offset).map { officer ->
+                                                          BloRecord(id=officer.id, district=officer.district, acNumber="", assemblyName="", partNo="", partName=officer.officeAddress, bloName=officer.name, designation=if (selectedTab == "DEO") "District Election Officer (DEO)" else "Deputy District Election Officer (DyDEO)", mobileNumber=officer.mobile, email=officer.email, landline=officer.landline)
                                                       }
                                                   }
                                                   rows = rows + next
@@ -563,15 +593,19 @@ jobs:
            @Query("SELECT DISTINCT acNumber, assemblyName FROM blo_records WHERE lower(district)=lower(:district) ORDER BY CAST(acNumber AS INTEGER), assemblyName") suspend fun assembliesForDistrict(district:String):List<AssemblyOption>
            @Query("SELECT DISTINCT partNo, partName FROM blo_records WHERE lower(district)=lower(:district) AND acNumber=:ac ORDER BY CAST(partNo AS INTEGER), partName") suspend fun partsForAssembly(district:String,ac:String):List<PartOption>
            @Query("SELECT COUNT(*) FROM blo_records") suspend fun count():Int
-           @Query("SELECT COUNT(*) FROM ero_records") suspend fun countEro():Int
-           @Query("SELECT DISTINCT district FROM ero_records WHERE district!='' ORDER BY district COLLATE NOCASE") suspend fun eroDistricts():List<String>
-           @Query("SELECT DISTINCT assembly FROM ero_records WHERE lower(district)=lower(:district) AND assembly!='' ORDER BY assembly COLLATE NOCASE") suspend fun eroAssembliesForDistrict(district:String):List<String>
-           @Query("SELECT COUNT(*) FROM ero_records WHERE (:q='' OR lower(name) LIKE '%'||lower(:q)||'%' OR lower(mobile) LIKE '%'||lower(:q)||'%' OR lower(officeAddress) LIKE '%'||lower(:q)||'%' OR lower(email) LIKE '%'||lower(:q)||'%') AND (:district='' OR lower(district)=lower(:district)) AND (:assembly='' OR lower(assembly)=lower(:assembly))") suspend fun countEroSearch(q:String,district:String,assembly:String):Int
-           @Query("SELECT * FROM ero_records WHERE (:q='' OR lower(name) LIKE '%'||lower(:q)||'%' OR lower(mobile) LIKE '%'||lower(:q)||'%' OR lower(officeAddress) LIKE '%'||lower(:q)||'%' OR lower(email) LIKE '%'||lower(:q)||'%') AND (:district='' OR lower(district)=lower(:district)) AND (:assembly='' OR lower(assembly)=lower(:assembly)) ORDER BY district,assembly,name LIMIT :limit OFFSET :offset") suspend fun searchEro(q:String,district:String,assembly:String,limit:Int,offset:Int):List<EroRecord>
+           @Query("SELECT COUNT(*) FROM ero_records WHERE upper(officerType)='ERO'") suspend fun countEro():Int
+           @Query("SELECT COUNT(*) FROM ero_records WHERE upper(officerType)=upper(:type)") suspend fun countOfficer(type:String):Int
+           @Query("SELECT DISTINCT district FROM ero_records WHERE district!='' AND upper(officerType)=upper(:type) ORDER BY district COLLATE NOCASE") suspend fun officerDistricts(type:String):List<String>
+           @Query("SELECT DISTINCT district FROM ero_records WHERE district!='' AND upper(officerType)='ERO' ORDER BY district COLLATE NOCASE") suspend fun eroDistricts():List<String>
+           @Query("SELECT DISTINCT assembly FROM ero_records WHERE lower(district)=lower(:district) AND assembly!='' AND upper(officerType)='ERO' ORDER BY assembly COLLATE NOCASE") suspend fun eroAssembliesForDistrict(district:String):List<String>
+           @Query("SELECT COUNT(*) FROM ero_records WHERE upper(officerType)='ERO' AND (:q='' OR lower(name) LIKE '%'||lower(:q)||'%' OR lower(mobile) LIKE '%'||lower(:q)||'%' OR lower(officeAddress) LIKE '%'||lower(:q)||'%' OR lower(email) LIKE '%'||lower(:q)||'%') AND (:district='' OR lower(district)=lower(:district)) AND (:assembly='' OR lower(assembly)=lower(:assembly))") suspend fun countEroSearch(q:String,district:String,assembly:String):Int
+           @Query("SELECT * FROM ero_records WHERE upper(officerType)='ERO' AND (:q='' OR lower(name) LIKE '%'||lower(:q)||'%' OR lower(mobile) LIKE '%'||lower(:q)||'%' OR lower(officeAddress) LIKE '%'||lower(:q)||'%' OR lower(email) LIKE '%'||lower(:q)||'%') AND (:district='' OR lower(district)=lower(:district)) AND (:assembly='' OR lower(assembly)=lower(:assembly)) ORDER BY district,assembly,name LIMIT :limit OFFSET :offset") suspend fun searchEro(q:String,district:String,assembly:String,limit:Int,offset:Int):List<EroRecord>
+           @Query("SELECT COUNT(*) FROM ero_records WHERE upper(officerType)=upper(:type) AND (:q='' OR lower(name) LIKE '%'||lower(:q)||'%' OR lower(mobile) LIKE '%'||lower(:q)||'%' OR lower(officeAddress) LIKE '%'||lower(:q)||'%' OR lower(email) LIKE '%'||lower(:q)||'%') AND (:district='' OR lower(district)=lower(:district))") suspend fun countOfficerSearch(q:String,district:String,type:String):Int
+           @Query("SELECT * FROM ero_records WHERE upper(officerType)=upper(:type) AND (:q='' OR lower(name) LIKE '%'||lower(:q)||'%' OR lower(mobile) LIKE '%'||lower(:q)||'%' OR lower(officeAddress) LIKE '%'||lower(:q)||'%' OR lower(email) LIKE '%'||lower(:q)||'%') AND (:district='' OR lower(district)=lower(:district)) ORDER BY district,name LIMIT :limit OFFSET :offset") suspend fun searchOfficer(q:String,district:String,type:String,limit:Int,offset:Int):List<EroRecord>
            @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun upsertAll(rows:List<BloRecord>)
            @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun upsertEroAll(rows:List<EroRecord>)
           }
-          @Database(entities=[BloRecord::class,EroRecord::class],version=4,exportSchema=true)
+          @Database(entities=[BloRecord::class,EroRecord::class],version=5,exportSchema=true)
           abstract class BloDatabase:RoomDatabase(){
            abstract fun dao():BloDao
            companion object { @Volatile private var instance:BloDatabase?=null
@@ -596,16 +630,16 @@ jobs:
             if(batch.isNotEmpty())db.dao().upsertAll(batch)
            }
           }
-          suspend fun seedEroFromAssets(c:Context,db:BloDatabase)=withContext(Dispatchers.IO){
-           if(db.dao().countEro()>0)return@withContext
-           c.assets.open("ero_directory.csv").bufferedReader(Charsets.UTF_8).useLines{lines->
+          suspend fun seedOfficerFromAssets(c:Context,db:BloDatabase,assetName:String,type:String)=withContext(Dispatchers.IO){
+           if(db.dao().countOfficer(type)>0)return@withContext
+           c.assets.open(assetName).bufferedReader(Charsets.UTF_8).useLines{lines->
             val it=lines.iterator();if(it.hasNext())it.next()
             val batch=mutableListOf<EroRecord>()
             var sourceRowNumber=0L
             while(it.hasNext()){
              val f=parseCsv(it.next())
              if(f.size>=10){
-              val id="ero-source-row-${sourceRowNumber++}"
+              val id="${type.lowercase()}-source-row-${sourceRowNumber++}"
               batch.add(EroRecord(id,f[0],f[1],f[2],f[3],f[4],f[5],f[6],f[7],f[8],f[9]))
               if(batch.size>=500){db.dao().upsertEroAll(batch.toList());batch.clear()}
              }
