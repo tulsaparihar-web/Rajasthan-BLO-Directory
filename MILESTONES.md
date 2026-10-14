@@ -51,7 +51,7 @@ The v1.0.0 milestone branch remains frozen and unchanged. BLO search, district/a
 
 - **Status:** Implemented, merged to `main`; APK build and archive verification succeeded.
 - **Pull request:** [#3 — Add DEO and DyDEO district-level tabs](https://github.com/tulsaparihar-web/Rajasthan-BLO-Directory/pull/3)
-- **Merge commit:** `118d17d5f635bca8db4cec1d4dbc02098b8794c`
+- **Merge commit:** `118d17d5f635bca8db4cec4d12dbc02098b8794c`
 - **Verified build:** [GitHub Actions run 38533367130](https://github.com/tulsaparihar-web/Rajasthan-BLO-Directory/actions/runs/38533367130)
 - **Build artifact:** `Rajasthan-BLO-Directory-APK`
 
