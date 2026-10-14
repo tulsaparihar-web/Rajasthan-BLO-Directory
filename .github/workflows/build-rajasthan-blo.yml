@@ -261,8 +261,8 @@ jobs:
                               Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)) {
                                   Column(modifier = Modifier.weight(1f)) {
                                       Text("RAJASTHAN", color = Color(0xFFFFC16B), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                      Text(if (hindi) "BLO, ERO, DEO और DyDEO निर्देशिका" else "BLO, ERO, DEO & DyDEO Directory", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                                      Text(if (hindi) "निर्वाचन विभाग, राजस्थान" else "Election Department • Rajasthan", color = Color(0xFFD6E2EC), style = MaterialTheme.typography.bodySmall)
+                                      Text("Election Department Rajasthan", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                                      Text("Election Officers Directory", color = Color(0xFFD6E2EC), style = MaterialTheme.typography.bodySmall)
                                   }
                                   TextButton(onClick = {
                                       if (!syncing) { syncDialog = true; syncing = true; syncMessage = "Starting sync…"; syncResults = emptyList()
