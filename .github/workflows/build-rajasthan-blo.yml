@@ -626,11 +626,11 @@ jobs:
            @Query("SELECT * FROM ero_records WHERE upper(officerType)=upper(:type) AND (:q='' OR lower(name) LIKE '%'||lower(:q)||'%' OR lower(mobile) LIKE '%'||lower(:q)||'%' OR lower(officeAddress) LIKE '%'||lower(:q)||'%' OR lower(email) LIKE '%'||lower(:q)||'%') AND (:district='' OR lower(district)=lower(:district)) ORDER BY district,name LIMIT :limit OFFSET :offset") suspend fun searchOfficer(q:String,district:String,type:String,limit:Int,offset:Int):List<EroRecord>
            @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun upsertAll(rows:List<BloRecord>)
            @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun upsertEroAll(rows:List<EroRecord>)
-          }
            @Query("DELETE FROM blo_records") suspend fun deleteAllBlo()
            @Query("DELETE FROM ero_records WHERE upper(officerType)=upper(:type)") suspend fun deleteOfficerType(type:String)
            @Transaction suspend fun replaceBlo(rows:List<BloRecord>) { deleteAllBlo(); rows.chunked(1000).forEach { upsertAll(it) } }
            @Transaction suspend fun replaceOfficerType(type:String,rows:List<EroRecord>) { deleteOfficerType(type); rows.chunked(500).forEach { upsertEroAll(it) } }
+          }
 
           @Database(entities=[BloRecord::class,EroRecord::class],version=5,exportSchema=true)
           abstract class BloDatabase:RoomDatabase(){
