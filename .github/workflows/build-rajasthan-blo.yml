@@ -289,7 +289,7 @@ jobs:
                               }
                               Spacer(Modifier.height(4.dp))
                               Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                  listOf(listOf("BLO", "ERO"), listOf("DYDEO", "DEO")).forEach { tabRow ->
+                                  listOf(listOf("DEO", "DYDEO"), listOf("ERO", "BLO")).forEach { tabRow ->
                                       Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                           tabRow.forEach { tab ->
                                               val active = selectedTab == tab
@@ -607,7 +607,7 @@ jobs:
                       }
                   }
               }
-              if(syncDialog) AlertDialog(onDismissRequest={if(!syncing) syncDialog=false}, title={Text(if(hindi) "निर्देशिका सिंक" else "Directory Sync")}, text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){ if(syncing) Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){CircularProgressIndicator(modifier=Modifier.size(22.dp),strokeWidth=2.dp);Text(syncMessage)} else Text(syncMessage,fontWeight=FontWeight.SemiBold); syncResults.forEach{Text(it,style=MaterialTheme.typography.bodySmall)}; if(syncing) Text(if(hindi) "सत्यापन के बाद ही डेटा बदलेगा।" else "Data is replaced only after validation; existing offline data is preserved.",style=MaterialTheme.typography.bodySmall,color=Muted)}}, confirmButton={TextButton(onClick={syncDialog=false},enabled=!syncing){Text(if(hindi) "बंद करें" else "Close")}})
+              if(syncDialog) AlertDialog(onDismissRequest={if(!syncing) syncDialog=false}, title={Text(if(hindi) "निर्देशिका सिंक" else "Directory Sync")}, text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){ if(syncing) { Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){CircularProgressIndicator(modifier=Modifier.size(22.dp),strokeWidth=2.dp);Text(syncMessage)}; LinearProgressIndicator(modifier=Modifier.fillMaxWidth()) } else Text(syncMessage,fontWeight=FontWeight.SemiBold); syncResults.forEach{Text(it,style=MaterialTheme.typography.bodySmall)}; if(syncing) Text(if(hindi) "सत्यापन के बाद ही डेटा बदलेगा।" else "Sync in progress. Data is replaced only after validation; existing offline data is preserved.",style=MaterialTheme.typography.bodySmall,color=Muted)}}, confirmButton={TextButton(onClick={syncDialog=false},enabled=!syncing){Text(if(hindi) "बंद करें" else "Close")}})
           }
           KOTLIN
           cat > "$DB" <<'KOTLIN'
