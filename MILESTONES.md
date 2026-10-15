@@ -64,3 +64,26 @@ The v1.0.0 milestone branch remains frozen and unchanged. BLO search, district/a
 - DEO Call button is disabled as requested; calling remains enabled for DyDEO where a mobile number exists.
 - Existing BLO and ERO functionality retained; ERO queries are isolated from DEO/DyDEO records.
 - Room database upgraded to v5 to seed the new officer datasets after upgrade.
+
+## v1.3.0 — Election Officers Directory Working Milestone
+
+- **Status:** User-confirmed working excellently on mobile; Build #55 succeeded and the APK was verified.
+- **Milestone date:** 2026-10-15
+- **Repository:** https://github.com/tulsaparihar-web/Rajasthan-BLO-Directory
+- **Verified build:** [GitHub Actions run #55](https://github.com/tulsaparihar-web/Rajasthan-BLO-Directory/actions/runs/38692013109) — successful build, APK validation, and artifact upload.
+- **Build commit:** `e24d903ad51905cf98dc31bec58ce8760d989fd4`
+- **Installed app name:** `Election Officers Directory`
+- **Logo:** Reverted; no custom logo in this milestone.
+
+### Included capabilities
+
+- Four directory categories: BLO, ERO, DEO, and DyDEO.
+- Directory cards ordered DEO, DyDEO, ERO, BLO in a compact 2×2 layout.
+- Bilingual Hindi/English interface and offline directory data.
+- Per-directory Sync functionality with a visible progress indicator.
+- Existing search, filtering, contact, and directory behavior retained from the working app.
+
+### Milestone rule
+
+Treat Build #55 as the user-confirmed working reference for the current app. Preserve this behavior and the installed app name when making future changes. Build and validate every subsequent APK before sharing it; distinguish successful build verification from on-device testing.
+
