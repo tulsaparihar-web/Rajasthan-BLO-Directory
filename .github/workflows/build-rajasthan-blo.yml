@@ -114,7 +114,6 @@ jobs:
           import android.os.Bundle
           import androidx.activity.ComponentActivity
           import androidx.activity.compose.setContent
-          import androidx.compose.foundation.Canvas
           import androidx.compose.foundation.background
           import androidx.compose.foundation.horizontalScroll
           import androidx.compose.foundation.rememberScrollState
@@ -131,11 +130,8 @@ jobs:
           import androidx.compose.material3.*
           import androidx.compose.runtime.*
           import androidx.compose.ui.Alignment
-          import androidx.compose.ui.geometry.Offset
-          import androidx.compose.ui.geometry.Size
           import androidx.compose.ui.Modifier
           import androidx.compose.ui.graphics.Color
-          import androidx.compose.ui.graphics.Path
           import androidx.compose.ui.platform.LocalContext
           import androidx.compose.ui.text.font.FontWeight
           import androidx.compose.ui.unit.dp
@@ -147,60 +143,6 @@ jobs:
           private val Saffron = Color(0xFFF4A000)
           private val Pale = Color(0xFFF4F6F9)
           private val Muted = Color(0xFF667085)
-
-          // Draw the emblem directly in Compose: no image/resource decoding at startup.
-          @Composable
-          private fun ElectionLogo() {
-              Canvas(
-                  modifier = Modifier
-                      .padding(end = 12.dp)
-                      .size(52.dp)
-                      .background(Color.White, RoundedCornerShape(10.dp))
-              ) {
-                  val w = size.width
-                  val h = size.height
-                  val rajasthan = Path().apply {
-                      moveTo(w * 0.28f, h * 0.13f)
-                      lineTo(w * 0.51f, h * 0.18f)
-                      lineTo(w * 0.63f, h * 0.30f)
-                      lineTo(w * 0.78f, h * 0.34f)
-                      lineTo(w * 0.74f, h * 0.49f)
-                      lineTo(w * 0.63f, h * 0.57f)
-                      lineTo(w * 0.59f, h * 0.76f)
-                      lineTo(w * 0.46f, h * 0.86f)
-                      lineTo(w * 0.36f, h * 0.70f)
-                      lineTo(w * 0.22f, h * 0.66f)
-                      lineTo(w * 0.17f, h * 0.49f)
-                      lineTo(w * 0.24f, h * 0.36f)
-                      close()
-                  }
-                  drawPath(rajasthan, color = Color(0xFF173B7A))
-                  drawRoundRect(
-                      color = Color.White,
-                      topLeft = Offset(w * 0.31f, h * 0.42f),
-                      size = Size(w * 0.39f, h * 0.27f),
-                      cornerRadius = androidx.compose.ui.geometry.CornerRadius(w * 0.025f)
-                  )
-                  drawLine(
-                      color = Color(0xFFF4A000),
-                      start = Offset(w * 0.36f, h * 0.48f),
-                      end = Offset(w * 0.64f, h * 0.48f),
-                      strokeWidth = w * 0.045f
-                  )
-                  drawLine(
-                      color = Color(0xFFF4A000),
-                      start = Offset(w * 0.39f, h * 0.58f),
-                      end = Offset(w * 0.46f, h * 0.64f),
-                      strokeWidth = w * 0.055f
-                  )
-                  drawLine(
-                      color = Color(0xFFF4A000),
-                      start = Offset(w * 0.46f, h * 0.64f),
-                      end = Offset(w * 0.60f, h * 0.53f),
-                      strokeWidth = w * 0.055f
-                  )
-              }
-          }
 
           class MainActivity : ComponentActivity() {
               override fun onCreate(savedInstanceState: Bundle?) {
@@ -317,7 +259,6 @@ jobs:
                           ) {
                               Box(Modifier.fillMaxWidth().height(4.dp).background(Saffron))
                               Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)) {
-                                  ElectionLogo()
                                   Column(modifier = Modifier.weight(1f)) {
                                       Text("RAJASTHAN GOVERNMENT", color = Color(0xFFFFC16B), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                       Text("Election Department Rajasthan", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
